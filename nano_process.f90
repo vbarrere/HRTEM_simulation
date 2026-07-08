@@ -240,13 +240,12 @@ module nano_process
 
     subroutine prepare_hrtem_particle
         
-        use constants, only: dbf_ag, dbf_co
+        use constants, only: dbf_ag, dbf_co, box_hrtem
         use descriptor, only: n_atoms
-        use variable, only: species, box, atom_typ1, pos_cluster, atomic_number, biso
+        use variable, only: species, atom_typ1, pos_cluster, atomic_number, biso
 
         integer :: i_atom
 
-        box = 0.1d0 * box
         do i_atom = 1, n_atoms
             if (species(i_atom) .eq. atom_typ1) then
                 atomic_number(i_atom) = 47
@@ -255,7 +254,7 @@ module nano_process
                 atomic_number(i_atom) = 27
                 biso(i_atom) = dbf_co
             endif
-            pos_cluster(:, i_atom) = pos_cluster(:, i_atom) / (box * 10.0d0)
+            pos_cluster(:, i_atom) = pos_cluster(:, i_atom) / (box_hrtem*10.0d0)
         enddo
 
     endsubroutine

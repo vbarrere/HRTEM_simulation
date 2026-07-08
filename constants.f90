@@ -21,6 +21,7 @@ module constants
     integer, parameter                      :: nx_max = 96, ny_max = 96, nz_max = 15
     integer, parameter                      :: n_atoms_max = 5000
     integer, parameter                      :: n_types_max = 5
+    double precision, parameter             :: box_hrtem(3) = (/ 12.0d0, 12.0d0, 12.0d0 /)
     
 endmodule
 

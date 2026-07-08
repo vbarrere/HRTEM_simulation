@@ -6,7 +6,7 @@ module slc
 
     subroutine run_slc
 
-        use constants, only: hc, e0, sigma0
+        use constants, only: hc, e0, sigma0, box_hrtem
         use variable, only: ht, nx, ny, nz, box, lambda, sigma_lambda, dx, dy, dz, volume_slc, n_types, &
                             i_type, g2, ftab, f_re, f_im, index_slice, gx, gy, uhat, trans, gthr2, trans_fft
         use fft, only: fft_index, fft2
@@ -17,22 +17,22 @@ module slc
 
         lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
         sigma_lambda = sigma0 * lambda
-        dx = box(1) / dble(nx)
-        dy = box(2) / dble(ny)
-        dz = box(3) / dble(nz)
-        volume_slc = box(1) * box(2) * dz
+        dx = box_hrtem(1) / dble(nx)
+        dy = box_hrtem(2) / dble(ny)
+        dz = box_hrtem(3) / dble(nz)
+        volume_slc = box_hrtem(1) * box_hrtem(2) * dz
 
         call unique_scattering_factors
 
         do i_px = 1, nx
             mx = fft_index(i_px, nx)
-            gx(i_px) = dble(mx) / box(1)
+            gx(i_px) = dble(mx) / box_hrtem(1)
         enddo
         do j_px = 1, ny
             my = fft_index(j_px, ny)
-            gy(j_px) = dble(my) / box(2)
+            gy(j_px) = dble(my) / box_hrtem(2)
         enddo
-        gmax = min(0.5d0*nx / box(1), 0.5d0*ny / box(2))
+        gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2))
         do j_px = 1, ny
             do i_px = 1, nx
                 apod(i_px, j_px) = 0.5d0 - 0.5d0*tanh((sqrt(gx(i_px)**2 + gy(j_px)**2)/gmax -0.9d0) * 30.0d0)
@@ -65,6 +65,7 @@ module slc
 
     subroutine apply_hard_aperture
 
+        use constants, only: box_hrtem
         use variable, only: nx, ny, gthr2, box, trans_fft
         use fft, only: fft_index
 
@@ -73,10 +74,10 @@ module slc
 
         do j_px = 1, ny        
             my = fft_index(j_px, ny)
-            gy = my / box(2)
+            gy = my / box_hrtem(2)
             do i_px = 1, nx
                 mx = fft_index(i_px, nx)
-                gx = mx / box(1)
+                gx = mx / box_hrtem(1)
                 if (gx**2 + gy**2 .gt. gthr2) trans_fft(i_px, j_px) = dcmplx(0.0d0, 0.0d0)
             enddo
         enddo
@@ -85,7 +86,7 @@ module slc
 
     subroutine slice_potential
         
-        use constants, only: pi, v0
+        use constants, only: pi, v0, box_hrtem
         use variable, only: index_slice, uhat, dz, slice_count, pos_cluster, nz, type_index, box, nx, ny, gx, gy, volume_slc, ftab
         use descriptor, only: n_atoms
 
@@ -106,7 +107,7 @@ module slc
             endif
             slice_count(index_slice) = slice_count(index_slice) + 1
             itype = type_index(i_atom)
-            r = pos_cluster(1:2, i_atom) * box(1:2)
+            r = pos_cluster(1:2, i_atom) * box_hrtem(1:2)
             do i_px = 1, nx
                 phase = -2.0d0*pi * gx(i_px) * r(1)
                 phase_x(i_px) = dcmplx(cos(phase), sin(phase))

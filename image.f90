@@ -49,10 +49,10 @@ module image
     subroutine write_descriptor_row
         
         use descriptor
-        
+        use variable, only: box
 
         write(12,*) id_sim, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, nat1, nat2, nat1_out, &
-                    nat2_out, nat1_in, nat2_in, d_com
+                    nat2_out, nat1_in, nat2_in, d_com, box(1)
 
         !write(12, '(I0,1X,ES16.8E3,1X,ES16.8E3,1X,I0,1X,I0,1X,A,1X,I0)', advance='no') &
         !    n_atoms, composition, coreshell_index, snapshot_index, augmentation_index, &
@@ -91,21 +91,23 @@ module image
 
         integer, intent(in) :: unit_no
 
-        write(unit_no, '(A)', advance='no') 'nat xag coreshell_index snapshot_index augmentation_index xyz_file seed'
-        write(unit_no, '(A)', advance='no') ' n_ag n_co n_clusters rg_ang d_com_ang n_shell n_ag_shell n_core n_ag_core'
-        write(unit_no, '(A)', advance='no') ' position_scale image_min image_max nx ny nz ht fs sc_mrad vib1 vib2 vibdir oapr edge'
-        write(unit_no, '(A)', advance='no') ' dose_e_per_a2 readout_noise_e dbf_ag dbf_co doptc dopsc dovib'
-        write(unit_no, '(A)', advance='no') ' rot11 rot21 rot31 rot12 rot22 rot32 rot13 rot23 rot33'
-        write(unit_no, '(A)', advance='no') ' shift_x_ang shift_y_ang shift_z_ang'
-        write(unit_no, '(A)', advance='no') ' aberr_re01 aberr_re02 aberr_re03 aberr_re04 aberr_re05 aberr_re06'
-        write(unit_no, '(A)', advance='no') ' aberr_re07 aberr_re08 aberr_re09 aberr_re10 aberr_re11 aberr_re12'
-        write(unit_no, '(A)', advance='no') ' aberr_re13 aberr_re14 aberr_re15 aberr_re16 aberr_re17 aberr_re18'
-        write(unit_no, '(A)', advance='no') ' aberr_re19 aberr_re20 aberr_re21 aberr_re22 aberr_re23 aberr_re24'
-        write(unit_no, '(A)', advance='no') ' aberr_im01 aberr_im02 aberr_im03 aberr_im04 aberr_im05 aberr_im06'
-        write(unit_no, '(A)', advance='no') ' aberr_im07 aberr_im08 aberr_im09 aberr_im10 aberr_im11 aberr_im12'
-        write(unit_no, '(A)', advance='no') ' aberr_im13 aberr_im14 aberr_im15 aberr_im16 aberr_im17 aberr_im18'
-        write(unit_no, '(A)', advance='no') ' aberr_im19 aberr_im20 aberr_im21 aberr_im22 aberr_im23 aberr_im24'
-        write(unit_no, *)
+        write(unit_no, '(A)', advance='no') 'id_sim n_atoms n_steps initial_temperature epot_total composition gyration_radius '&
+                                'nat1 nat2 nat1_out nat2_out nat1_in nat2_in d_com box_size'
+        !write(unit_no, '(A)', advance='no') 'nat xag coreshell_index snapshot_index augmentation_index xyz_file seed'
+        !write(unit_no, '(A)', advance='no') ' n_ag n_co n_clusters rg_ang d_com_ang n_shell n_ag_shell n_core n_ag_core'
+        !write(unit_no, '(A)', advance='no') ' position_scale image_min image_max nx ny nz ht fs sc_mrad vib1 vib2 vibdir oapr edge'
+        !write(unit_no, '(A)', advance='no') ' dose_e_per_a2 readout_noise_e dbf_ag dbf_co doptc dopsc dovib'
+        !write(unit_no, '(A)', advance='no') ' rot11 rot21 rot31 rot12 rot22 rot32 rot13 rot23 rot33'
+        !write(unit_no, '(A)', advance='no') ' shift_x_ang shift_y_ang shift_z_ang'
+        !write(unit_no, '(A)', advance='no') ' aberr_re01 aberr_re02 aberr_re03 aberr_re04 aberr_re05 aberr_re06'
+        !write(unit_no, '(A)', advance='no') ' aberr_re07 aberr_re08 aberr_re09 aberr_re10 aberr_re11 aberr_re12'
+        !write(unit_no, '(A)', advance='no') ' aberr_re13 aberr_re14 aberr_re15 aberr_re16 aberr_re17 aberr_re18'
+        !write(unit_no, '(A)', advance='no') ' aberr_re19 aberr_re20 aberr_re21 aberr_re22 aberr_re23 aberr_re24'
+        !write(unit_no, '(A)', advance='no') ' aberr_im01 aberr_im02 aberr_im03 aberr_im04 aberr_im05 aberr_im06'
+        !write(unit_no, '(A)', advance='no') ' aberr_im07 aberr_im08 aberr_im09 aberr_im10 aberr_im11 aberr_im12'
+        !write(unit_no, '(A)', advance='no') ' aberr_im13 aberr_im14 aberr_im15 aberr_im16 aberr_im17 aberr_im18'
+        !write(unit_no, '(A)', advance='no') ' aberr_im19 aberr_im20 aberr_im21 aberr_im22 aberr_im23 aberr_im24'
+        !write(unit_no, *)
 
     endsubroutine write_descriptor_header
 

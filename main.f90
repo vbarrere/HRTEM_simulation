@@ -68,6 +68,7 @@ program main
             if (.not. placed) cycle
             !call save_xyz
             call read_input
+            box = box * 0.1d0
             call prepare_hrtem_particle
             
             call run_slc
