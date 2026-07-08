@@ -1,2 +1,7 @@
 *.dat
 /images_png
+*.tmp
+*.mod
+*.o
+
+main

@@ -3,7 +3,7 @@ program main
     use mpi
     use constants, only: file_list, image_unit, descriptor_unit
     use variable, only: max_files, snapshot_index, species,augmentation_index, accepted, atom_typ1, atom_typ2, n_accepted, placed, &
-                        box
+                        box, nx, ny, nz, ht
     use utils_io
     use nano_process
     use random_utils
@@ -29,6 +29,13 @@ program main
     read(env_var, *) max_files
     call get_environment_variable('atom_typ1', atom_typ1)
     call get_environment_variable('atom_typ2', atom_typ2)
+    call get_environment_variable('n_px', env_var)
+    read(env_var, *) nx
+    read(env_var, *) ny
+    call get_environment_variable('nz', env_var)
+    read(env_var, *) nz
+    call get_environment_variable('ht', env_var)
+    read(env_var, *) ht
 
     if(rank.eq.0) call execute_command_line('find ' // xyz_dir // & 
             ' -maxdepth 1 -name "*.xyz" | sort -V > ' // file_list)

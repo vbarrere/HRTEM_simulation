@@ -141,21 +141,10 @@ module utils_io
 
     subroutine read_input
 
-        use constants, only:    nx_max, ny_max, nz_max
-        use variable,  only:    nx, ny, nz, ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                                doptc, dopsc, dovib, aberr_re, aberr_im, img_file
+        use variable,  only:    fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
+                                doptc, dopsc, dovib, aberr_re, aberr_im
         use random_utils, only: random_uniform, sample_aberration
 
-        nx = 96
-        ny = 96
-        nz = 15
-
-        if (nx .gt. nx_max .or. ny .gt. ny_max .or. nz .gt. nz_max) then
-            stop "error: grid dimensions exceed maximum allowed values"
-        end if
-        ht = 200.0d0
-        !xyz_file = 'input.xyz'
-        img_file = 'image.dat'
         doptc = 1
         fs = 0.7d0
         dopsc = 1
@@ -173,20 +162,16 @@ module utils_io
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
-        !call sample_aberration(2, -10.0d0, 10.0d0)
-        call sample_aberration(2, -3.0d0, -1.0d0)
-        call sample_aberration(3, 0.0d0, 6.0d0)
-        !call sample_aberration(4, 0.0d0, 80.0d0) ! B2 Axial coma
+        call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
+        call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
-        !call sample_aberration(5, 0.0d0, 200.0d0)
-        call sample_aberration(5, 0.0d0, 50.0d0) ! A2 Threefold astigmatism
-        !call sample_aberration(6, -5000.0d0, 5000.0d0)
-        call sample_aberration(6, -15000.0d0, 0.0d0) ! Cs Spherical aberration
-        call sample_aberration(7, 0.0d0, 700.0d0)
-        call sample_aberration(8, 0.0d0, 700.0d0)
-        call sample_aberration(9, 0.0d0, 1500.0d0)
-        call sample_aberration(10, 0.0d0, 1500.0d0)
-        call sample_aberration(11, 0.0d0, 1500.0d0)
+        call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
+        call sample_aberration(6, -15000.0d0, 0.0d0) ! C3 Spherical aberration (Cs)
+        call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
+        call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
+        call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
+        call sample_aberration(10, 0.0d0, 1500.0d0) ! D4 5th-order term
+        call sample_aberration(11, 0.0d0, 1500.0d0) ! A4 5th-order term
 
     endsubroutine
 
