@@ -9,9 +9,9 @@
         use constants, only: base_seed
         use variable, only: xyz_files, snapshot_index, augmentation_index, seed
 
-        character(len=255) :: filename
-        integer :: i
-        integer(kind=8) :: h
+        character(len=255)  ::  filename
+        integer             ::  i
+        integer(kind=8)     ::  h
 
         filename = trim(xyz_files(snapshot_index))
         i = len_trim(filename)
@@ -33,9 +33,9 @@
 
         use variable, only: seed
 
-        integer :: i, n_seed, clock_count
-        integer, allocatable :: seed_values(:)
-        integer(kind=8) :: state
+        integer                 ::  i, n_seed, clock_count
+        integer, allocatable    ::  seed_values(:)
+        integer(kind=8)         ::  state
 
         call random_seed(size=n_seed)
         allocate(seed_values(n_seed))
@@ -61,8 +61,8 @@
 
     double precision function random_uniform(xmin, xmax)
 
-        double precision, intent(in)    :: xmin, xmax
-        double precision                :: u
+        double precision, intent(in)    ::  xmin, xmax
+        double precision                ::  u
 
         call random_number(u)
         random_uniform = xmin + (xmax - xmin) * u
@@ -74,10 +74,10 @@
         use constants, only: aberr_periodicity, pi
         use variable, only: aberr_re, aberr_im
 
-        integer :: n
-        double precision, intent(in) :: xmin, xmax
-        integer, intent(in) :: index
-        double precision :: magnitude, phi
+        integer                         ::  n
+        double precision, intent(in)    ::  xmin, xmax
+        integer, intent(in)             ::  index
+        double precision                ::  magnitude, phi
 
         n = aberr_periodicity(index)
         magnitude = random_uniform(xmin, xmax)

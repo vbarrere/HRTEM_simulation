@@ -1,19 +1,27 @@
 module slc
 
+    use constants, only: nx_max, ny_max, nz_max, n_types_max, n_atoms_max
+
     implicit none
 
+    integer             ::  index_type, n_types, type_index(n_atoms_max), atomic_number_type(n_types_max), index_slice
+    integer             ::  slice_count(nz_max)
+    double precision    ::  volume_slc, f_re, f_im, gthr2, gx(nx_max), gy(ny_max), biso_type(n_types_max), a(2), b(6)
+    double complex      ::  uhat(nx_max, ny_max), trans_fft(nx_max, ny_max), ftab(n_types_max, nx_max, ny_max)
+
+
     contains
+
 
     subroutine run_slc
 
         use constants, only: hc, e0, sigma0, box_hrtem
-        use variable, only: ht, nx, ny, nz, box, lambda, sigma_lambda, dx, dy, dz, volume_slc, n_types, &
-                            i_type, g2, ftab, f_re, f_im, index_slice, gx, gy, uhat, trans, gthr2, trans_fft
+        use variable, only: ht, nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax
         use fft, only: fft_index, fft2
 
-        integer :: i_px, j_px, mx, my
-        double precision :: gmax, apod(nx, ny)
-        double complex :: pot(nx, ny), trans_filtered(nx, ny)
+        integer             ::  i_px, j_px, mx, my
+        double precision    ::  apod(nx, ny), sigma_lambda
+        double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
 
         lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
         sigma_lambda = sigma0 * lambda
@@ -22,24 +30,23 @@ module slc
         dz = box_hrtem(3) / dble(nz)
         volume_slc = box_hrtem(1) * box_hrtem(2) * dz
 
-        call unique_scattering_factors
+        call unique_scattering_factors ! Creation d'un tableau de facteurs de diffusion unique pour chaque type d'atome
 
         do i_px = 1, nx
-            mx = fft_index(i_px, nx)
-            gx(i_px) = dble(mx) / box_hrtem(1)
+            mx = fft_index(i_px, nx) ! indices pour espaces reciproques et grille centrée en 0
+            gx(i_px) = dble(mx) / box_hrtem(1) ! Frequence spatiale en x
+            my = fft_index(i_px, ny)
+            gy(i_px) = dble(my) / box_hrtem(2) ! Frequence spatiale en y
         enddo
-        do j_px = 1, ny
-            my = fft_index(j_px, ny)
-            gy(j_px) = dble(my) / box_hrtem(2)
-        enddo
-        gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2))
+        !gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2)) ! Limite de Nyquist
+        gmax = 0.5d0*nx / box_hrtem(1) ! Limite de Nyquist
         do j_px = 1, ny
             do i_px = 1, nx
                 apod(i_px, j_px) = 0.5d0 - 0.5d0*tanh((sqrt(gx(i_px)**2 + gy(j_px)**2)/gmax -0.9d0) * 30.0d0)
             enddo
         enddo
 
-        do i_type = 1, n_types
+        do index_type = 1, n_types
             do j_px = 1, ny
                 do i_px = 1, nx
                     g2 = gx(i_px)**2 + gy(j_px)**2
@@ -63,36 +70,38 @@ module slc
 
     endsubroutine
 
+
     subroutine apply_hard_aperture
 
         use constants, only: box_hrtem
-        use variable, only: nx, ny, gthr2, box, trans_fft
+        use variable, only: nx, ny
         use fft, only: fft_index
 
-        integer :: i_px, j_px, mx, my
-        double precision :: gx, gy
+        integer             ::  i_px, j_px, mx, my
+        double precision    ::  gx_hrtem, gy_hrtem
 
         do j_px = 1, ny        
             my = fft_index(j_px, ny)
-            gy = my / box_hrtem(2)
+            gy_hrtem = my / box_hrtem(2)
             do i_px = 1, nx
                 mx = fft_index(i_px, nx)
-                gx = mx / box_hrtem(1)
-                if (gx**2 + gy**2 .gt. gthr2) trans_fft(i_px, j_px) = dcmplx(0.0d0, 0.0d0)
+                gx_hrtem = mx / box_hrtem(1)
+                if (gx_hrtem**2 + gy_hrtem**2 .gt. gthr2) trans_fft(i_px, j_px) = dcmplx(0.0d0, 0.0d0)
             enddo
         enddo
     
     endsubroutine
 
+
     subroutine slice_potential
         
         use constants, only: pi, v0, box_hrtem
-        use variable, only: index_slice, uhat, dz, slice_count, pos_cluster, nz, type_index, box, nx, ny, gx, gy, volume_slc, ftab
+        use variable, only: dz, pos_cluster, nz, nx, ny
         use descriptor, only: n_atoms
 
-        integer             :: i_atom, itype, i_px, j_px
-        double precision    :: z0, z1, r(2), phase
-        double complex        :: phase_x(nx), phase_y(ny), shift_y
+        integer             ::  i_atom, itype, i_px, j_px
+        double precision    ::  z0, z1, r(2), phase
+        double complex      ::  phase_x(nx), phase_y(ny), shift_y
 
 
         z0 = (index_slice - 1) / dz
@@ -111,10 +120,8 @@ module slc
             do i_px = 1, nx
                 phase = -2.0d0*pi * gx(i_px) * r(1)
                 phase_x(i_px) = dcmplx(cos(phase), sin(phase))
-            enddo
-            do j_px = 1, ny
-                phase = -2.0d0*pi * gy(j_px) * r(2)
-                phase_y(j_px) = dcmplx(cos(phase), sin(phase))
+                phase = -2.0d0*pi * gy(i_px) * r(2)
+                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
             enddo
             do j_px = 1, ny
                 shift_y = phase_y(j_px)
@@ -124,15 +131,16 @@ module slc
             enddo
         enddo
         uhat = (v0 / volume_slc) * uhat
+
     endsubroutine
 
 
     subroutine unique_scattering_factors
 
         use descriptor, only: n_atoms
-        use variable, only: atomic_number, biso, type_index, atomic_number_type, biso_type, n_types
+        use variable, only: atomic_number, biso
 
-        integer :: i_atom, i_type
+        integer ::  i_atom, i_type
 
         n_types = 0
         do i_atom = 1, n_atoms
@@ -157,20 +165,20 @@ module slc
     subroutine scattering_factor
 
         use constants, only: e0, hc, pi, r8pi2
-        use variable, only: i_type, biso_type, f_re, f_im, g2, ht
+        use variable, only: g2, ht
 
-        double precision                :: gamma, ua, ga, k0, dwf, g
+        double precision    ::  gamma, ua, ga, k0, dwf, g
 
         g = sqrt(g2)
         call get_weko
 
         gamma = (e0 + ht) / e0
-        dwf = exp(-0.25d0*biso_type(i_type)*g2)
+        dwf = exp(-0.25d0*biso_type(index_type)*g2)
         f_re = 0.1d0 * gamma * 4.0d0*pi * weko_real(0.05d0 * g) * dwf
 
         f_im = 0.0d0
-        if(biso_type(i_type) .gt. 0.0d0 .and. abs(f_re) .gt. tiny(f_re)) then
-            ua = 10.0d0 * sqrt(biso_type(i_type) * r8pi2)
+        if(biso_type(index_type) .gt. 0.0d0 .and. abs(f_re) .gt. tiny(f_re)) then
+            ua = 10.0d0 * sqrt(biso_type(index_type) * r8pi2)
             ga = 0.1d0 * g * 2.0d0*pi
             k0 = 2.0d0*pi/hc*0.1d0 * sqrt((2.0d0*e0 + ht) * ht)
             f_im = 0.1d0 * gamma**2 * weko_imag(ga, ua) / k0
@@ -181,10 +189,8 @@ module slc
 
     subroutine get_weko
 
-        use variable, only: a, b, i_type, atomic_number_type
-
-        integer                         :: i
-        double precision                :: v(1:98), bb(6, 1:98)
+        integer             ::  i
+        double precision    ::  v(1:98), bb(6, 1:98)
 
         v = (/ &
             & 0.5d0, 0.5d0, 0.5d0, 0.3d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, &
@@ -298,10 +304,10 @@ module slc
             &  0.07088d0,  0.77587d0,  6.14295d0,  1.79036d0, 15.12379d0, 83.56983d0, &
             &  0.06164d0,  0.81363d0,  6.56165d0,  0.83805d0,  4.18914d0, 61.41408d0 /), (/ 6, 98 /))
 
-        a(1) = 0.023933659d0 * dble(atomic_number_type(i_type)) / (3.0d0 * (1.0d0 + v(atomic_number_type(i_type))))
-        a(2) = v(atomic_number_type(i_type)) * a(1)
+        a(1) = 0.023933659d0 * dble(atomic_number_type(index_type)) / (3.0d0 * (1.0d0 + v(atomic_number_type(index_type))))
+        a(2) = v(atomic_number_type(index_type)) * a(1)
         do i = 1, 6
-            b(i) = bb(i, atomic_number_type(i_type))
+            b(i) = bb(i, atomic_number_type(index_type))
         enddo
 
     endsubroutine
@@ -309,11 +315,9 @@ module slc
     
     double precision function weko_real(s)
 
-        use  variable, only: a, b
-
-        integer                         :: i, j
-        double precision                :: argu
-        double precision, intent(in)    :: s
+        integer                         ::  i, j
+        double precision                ::  argu
+        double precision, intent(in)    ::  s
 
         weko_real = 0.0d0
         do i = 1, 6
@@ -333,11 +337,10 @@ module slc
     double precision function weko_imag(g, ul)
 
         use constants, only: pi
-        use variable, only: a, b
 
-        double precision, intent(in)    :: g, ul
-        integer                         :: i, j, ii, jj
-        double precision                :: b1(6), dwf
+        double precision, intent(in)    ::  g, ul
+        integer                         ::  i, j, ii, jj
+        double precision                ::  b1(6), dwf
 
         do i = 1, 6
             b1(i) = b(i) / (4.0d0*pi*pi)
@@ -356,12 +359,13 @@ module slc
     
     endfunction
 
+
     double precision function ri1(bi, bj, g)
 
         use constants, only: pi, euler
 
-        double precision                :: big2, bjg2, x1, x2, g2
-        double precision, intent(in)    :: bi, bj, g
+        double precision                ::  big2, bjg2, x1, x2, g2
+        double precision, intent(in)    ::  bi, bj, g
 
         if(abs(g).le.tiny(g)) then
             ri1 = pi * (bi*log((bi+bj)/bi) + bj*log((bi+bj)/bj))
@@ -386,8 +390,8 @@ module slc
 
         use constants, only: pi
 
-        double precision                :: biu, bju, biuh, bjuh, g2, u2, x1, x2, x3
-        double precision, intent(in)    :: bi, bj, g, ul
+        double precision                ::  biu, bju, biuh, bjuh, g2, u2, x1, x2, x3
+        double precision, intent(in)    ::  bi, bj, g, ul
 
         u2 = ul**2
         g2 = g**2
@@ -426,7 +430,7 @@ module slc
 
     double precision function rih1(x1, x2, x3)
 
-        double precision, intent(in)    :: x1, x2, x3
+        double precision, intent(in)    ::  x1, x2, x3
 
         if(x2.le.20.0d0 .and. x3.le.20.0d0) then
             rih1 = exp(-x1) * (ei(x2) - ei(x3))
@@ -447,10 +451,10 @@ module slc
 
     double precision function rih2(x)
 
-        integer                         :: i, i1
-        double precision                :: x1
-        double precision, intent(in)    :: x
-        double precision, parameter     :: f(0:20) = (/ &
+        integer                         ::  i, i1
+        double precision                ::  x1
+        double precision, intent(in)    ::  x
+        double precision, parameter     ::  f(0:20) = (/ &
             1.000000d0, 1.005051d0, 1.010206d0, 1.015472d0, 1.020852d0, &
             1.026355d0, 1.031985d0, 1.037751d0, 1.043662d0, 1.049726d0, &
             1.055956d0, 1.062364d0, 1.068965d0, 1.075780d0, 1.082830d0, &
@@ -470,11 +474,11 @@ module slc
 
         use constants, only: euler
 
-        integer                         :: i
-        double precision                :: xp, si
-        double precision, intent(in)    :: x
-        double precision, parameter     :: a1 = 8.5733287401d0, a2 = 18.0590169730d0, a3 = 8.6347608925d0, a4 = 0.2677737343d0
-        double precision, parameter     :: b1 = 9.5733223454d0, b2 = 25.6329561486d0, b3 = 21.0996530827d0, b4 = 3.9584969228d0
+        integer                         ::  i
+        double precision                ::  xp, si
+        double precision, intent(in)    ::  x
+        double precision, parameter     ::  a1 = 8.5733287401d0, a2 = 18.0590169730d0, a3 = 8.6347608925d0, a4 = 0.2677737343d0
+        double precision, parameter     ::  b1 = 9.5733223454d0, b2 = 25.6329561486d0, b3 = 21.0996530827d0, b4 = 3.9584969228d0
 
         if(x.gt.60.0d0) stop 'error: ei argument too large'
         if(x.lt.-60.0d0) then
@@ -497,10 +501,24 @@ module slc
         do
             si = si * x * i / (i + 1.0d0)**2
             ei = ei + si
+            
+            ! TEST
+            if (ei .ne. ei) then
+                write(*,*) 'error: NaN in ei(), x=',x
+                stop
+            endif
+            
             if(abs(si/x).le.1.0d-6) exit
             i = i + 1
+
+            !TEST
+            if (i .gt. 1000) then
+                write(*,*) 'error: ei() did not converge, x=',x
+                stop
+            endif
         enddo
     
     endfunction
+
 
 endmodule

@@ -1,12 +1,17 @@
 module wavimg
 
+    use variable, only: nx_max, ny_max
+
     implicit none
+
+    double complex      ::  image_c(nx_max, ny_max)
+    double precision    ::  wx, wy, dchix, dchiy
 
     contains
 
     subroutine run_wavimg
     
-        use variable, only: wave, lambda, oapr, dx, dy, nx, ny, wave_fft, image, image_c
+        use variable, only: wave, lambda, dx, dy, nx, ny, wave_fft, image, oapr
         use fft, only: fft2
 
 
@@ -26,9 +31,9 @@ module wavimg
         use variable, only: image, dx, dy, vib1, vib2, vibdir, dovib, nx, ny, nx, ny
         use fft, only: fft2
 
-        integer :: nnx, nny, j_px, i_px
-        double precision :: v12, v22, cd, sd, py, py2, px, px2, vtmp, vmean
-        double complex :: cvib(nx, ny), image_fft(nx, ny), image_complex(nx, ny)
+        integer             ::  nnx, nny, j_px, i_px
+        double precision    ::  v12, v22, cd, sd, py, py2, px, px2, vtmp, vmean
+        double complex      ::  cvib(nx, ny), image_fft(nx, ny), image_complex(nx, ny)
 
         if (dovib .eq. 0 .or. vib1 .le. 0.0d0) return
         nnx = nx / 2
@@ -79,13 +84,12 @@ module wavimg
 
         use variable, only: nx, ny, image, dx, dy, dose_e_per_a2, readout_noise_e
 
-        integer                         :: i_px, j_px
-        double precision                :: e_per_pixel, pixel_area_a2, scaled
+        integer             ::  i_px, j_px
+        double precision    ::  e_per_pixel, pixel_area_a2, scaled
 
         pixel_area_a2 = 100.0d0 * dx * dy
         e_per_pixel = dose_e_per_a2 * pixel_area_a2
         if(e_per_pixel.le.0.0d0) return
-
         do j_px = 1, ny
             do i_px = 1, nx
                 scaled = max(image(i_px, j_px), 0.0d0) * e_per_pixel
@@ -96,19 +100,19 @@ module wavimg
                 image(i_px, j_px) = scaled / e_per_pixel
             enddo
         enddo
+
     endsubroutine
 
     subroutine explicit_focus_image
 
-        use variable, only: wave_fft, image_c, doptc, fs, lambda, wx, wy, nx, ny, dx, dy, oapr, edge, aberr_re, aberr_im, &
-                            dopsc, dchix, dchiy, sc_mrad
+        use variable, only: wave_fft, doptc, fs, lambda, nx, ny, dx, dy, edge, dopsc, sc_mrad, oapr
         use constants, only: pi
         use fft, only: fft_index, fft2
 
-        integer :: nkfs, j_px, i_px, k
-        double precision :: info_width, df_step, wsum, defocus_prefac, gy, gx, g2, df, wt, chi, sc_rad
-        double precision :: w2tab(nx, ny), wa_mrad, aperture, chi0(nx, ny), envs, dchix0, dchiy0, scpf
-        double complex :: transfer0(nx, ny), image_wave_fft(nx, ny), image_wave_rs(nx, ny)
+        integer             ::  nkfs, j_px, i_px, k
+        double precision    ::  info_width, df_step, wsum, defocus_prefac, gy, gx, g2, df, wt, chi, sc_rad
+        double precision    ::  w2tab(nx, ny), wa_mrad, aperture, chi0(nx, ny), envs, dchix0, dchiy0, scpf
+        double complex      ::  transfer0(nx, ny), image_wave_fft(nx, ny), image_wave_rs(nx, ny)
 
         image_c = dcmplx(0.0d0, 0.0d0)
         nkfs = 0
@@ -139,7 +143,7 @@ module wavimg
                     aperture = 1.0d0
                     if (wa_mrad .gt. oapr) aperture = 0.0d0
                 endif
-                chi0(i_px, j_px) = aberration_chi(wx, wy, lambda, aberr_re, aberr_im)
+                chi0(i_px, j_px) = aberration_chi()
                 envs = 1.0d0
                 if (dopsc .ne. 0) then
                     dchix0 = dchix
@@ -176,13 +180,13 @@ module wavimg
     subroutine aberration_gradient
         
         use constants, only: pi
-        use variable, only: wx, wy, lambda, aberr_re, aberr_im, dchix, dchiy
+        use variable, only: lambda, aberr_re, aberr_im
 
-        integer                         :: k, l, m, n, j, p
-        double precision                :: w, prefac, poly, dpolyx, dpolyy, t1, radial_x, radial_y
-        double precision                :: wxpow(0:8), wypow(0:8), wpow(0:8)
-        integer, parameter              :: am(24) = (/ 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8 /)
-        integer, parameter              :: an(24) = (/ 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
+        integer             ::  k, l, m, n, j, p
+        double precision    ::  w, prefac, poly, dpolyx, dpolyy, t1, radial_x, radial_y
+        double precision    ::  wxpow(0:8), wypow(0:8), wpow(0:8)
+        integer, parameter  ::  am(24) = (/ 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8 /)
+        integer, parameter  ::  an(24) = (/ 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
 
         w = sqrt(wx*wx + wy*wy)
         wxpow(0) = 1.0d0
@@ -193,7 +197,6 @@ module wavimg
             wypow(j) = wypow(j-1) * wy
             wpow(j) = wpow(j-1) * w
         enddo
-
         dchix = 0.0d0
         dchiy = 0.0d0
         do k = 1, 24
@@ -217,7 +220,6 @@ module wavimg
                 t1 = sign_cycle(l) * aberr_re(k) + sign_cycle(l+3) * aberr_im(k)
                 dpolyy = dpolyy + t1 * dble(binomial(n, l)) * dble(l) * wxpow(j) * wypow(l-1)
             enddo
-
             radial_x = 0.0d0
             radial_y = 0.0d0
             if(p.gt.0 .and. w.gt.0.0d0) then
@@ -236,7 +238,7 @@ module wavimg
 
     double precision function sign_cycle(i)
 
-        integer, intent(in)     :: i
+        integer, intent(in) ::  i
     
         select case(modulo(i, 4))
         case(0)
@@ -252,8 +254,8 @@ module wavimg
 
     integer function binomial(n, k)
 
-        integer, intent(in)     :: n, k
-        integer                 :: i
+        integer, intent(in) ::  n, k
+        integer             ::  i
     
         binomial = 1
         do i = 1, k
@@ -262,16 +264,17 @@ module wavimg
     
     endfunction
 
-    double precision function aberration_chi(wx, wy, lambda, aberr_re, aberr_im)
+
+    double precision function aberration_chi()
 
         use constants, only: pi
+        use variable, only: lambda, aberr_re, aberr_im
 
-        integer                         :: k, l, m, n, j
-        double precision                :: w, term, t1, prefac
-        double precision                :: wxpow(0:8), wypow(0:8), wpow(0:8)
-        double precision, intent(in)    :: wx, wy, lambda, aberr_re(24), aberr_im(24)
-        integer, parameter              :: am(24) = (/ 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8 /)
-        integer, parameter              :: an(24) = (/ 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
+        integer             ::  k, l, m, n, j
+        double precision    ::  w, term, t1, prefac
+        double precision    ::  wxpow(0:8), wypow(0:8), wpow(0:8)
+        integer, parameter  ::  am(24) = (/ 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8 /)
+        integer, parameter  :: an(24) = (/ 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
 
         w = sqrt(wx*wx + wy*wy)
         wxpow(0) = 1.0d0
@@ -282,7 +285,6 @@ module wavimg
             wypow(j) = wypow(j-1) * wy
             wpow(j) = wpow(j-1) * w
         enddo
-
         aberration_chi = 0.0d0
         do k = 1, 24
             if(aberr_re(k)*aberr_re(k) + aberr_im(k)*aberr_im(k).le.1.0d-30) cycle
@@ -305,15 +307,14 @@ module wavimg
 
     integer function sample_poisson(lambda)
 
-        integer                         :: k
-        double precision                :: limit, p, u
-        double precision, intent(in)    :: lambda
+        integer                         ::  k
+        double precision                ::  limit, p, u
+        double precision, intent(in)    ::  lambda
 
         if(lambda.le.0.0d0) then
             sample_poisson = 0
             return
         endif
-
         if(lambda.lt.30.0d0) then
             limit = exp(-lambda)
             p = 1.0d0
@@ -327,7 +328,6 @@ module wavimg
             sample_poisson = k
             return
         endif
-
         sample_poisson = max(0, nint(lambda + sqrt(lambda) * sample_standard_normal()))
     
     endfunction
@@ -337,7 +337,7 @@ module wavimg
 
         use constants, only: pi 
 
-        double precision                :: u1, u2
+        double precision    ::  u1, u2
 
         call random_number(u1)
         call random_number(u2)

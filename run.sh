@@ -3,11 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-np="${1:-5}"
-export xyz_dir="../xyz2"
+np="${1:-40}"
+export xyz_dir="/home/victor/Data/MD_data/AgCo/Dataset2/XYZ"
+export data_file="/home/victor/Data/MD_data/AgCo/Dataset2/data.dat"
 export images_data="images_full.dat"
 export descriptors_data="descriptors_full.dat"
-export max_files=10 # Put -1 to use all files in the dataset
+export max_files=100 # Put -1 to use all files in the dataset
 export atom_typ1="Ag"
 export atom_typ2="Co"
 export n_px=96

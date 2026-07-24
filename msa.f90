@@ -2,19 +2,21 @@ module msa
 
     implicit none
 
+    integer ::   index_slice
+
     contains
 
     subroutine run_msa
 
         use constants, only: pi
-        use variable, only: wave, dx, dy, nz, index_slice, trans, nx, ny, lambda, dz, wave_fft
+        use variable, only: wave, dx, dy, nz, trans, nx, ny, lambda, dz, wave_fft, gmax
         use fft, only: fft2, fft_index
 
-        integer :: i_px, j_px, mx, my
-        double precision :: gmax, aperture2, chi, gx, gy, g2
+        integer             ::  i_px, j_px, mx, my
+        double precision    ::  aperture2, chi, gx, gy, g2
 
         wave = dcmplx(1.0d0, 0.0d0)
-        gmax= min(0.5d0/dx, 0.5d0/dy)
+        !gmax= min(0.5d0/dx, 0.5d0/dy)
         aperture2 = (2.0d0*gmax/3.0d0)**2
         do index_slice = 1, nz
             wave(1:nx, 1:ny) = wave(1:nx, 1:ny) * trans(1:nx, 1:ny, index_slice)
