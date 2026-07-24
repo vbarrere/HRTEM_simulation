@@ -18,8 +18,7 @@ with open(image_file) as f:
         if not line:
             continue
         id_sim, _, pixels = line.partition(" ")
-        #img = np.fromstring(line, sep=" ", dtype=np.int16).astype(np.int16)
-        img = np.fromstring(pixels, sep=" ", dtype=np.int16).astype(np.int16)
+        img = np.array(pixels.split(), dtype=np.int16)
         img = (img + 128).astype(np.uint8).reshape(nx, nx)
         #out_png = os.path.join(out_dir, f"image_{line_no:05d}.png")
         out_png = os.path.join(out_dir, f"{id_sim}.png")

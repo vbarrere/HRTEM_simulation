@@ -31,13 +31,13 @@ module variable
 
     implicit none
 
-    integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, size, nx, ny, nz, n_seed
+    integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, n_ranks, nx, ny, nz, n_seed
     integer             ::  atomic_number(n_atoms_max)
     double precision    ::  box(3), shift(3), biso(n_atoms_max), image(nx_max, ny_max), pos(3, n_atoms_max), epot(n_atoms_max)
     double precision    ::  pos_cluster(3, n_atoms_max), readout_noise_e, aberr_re(24), aberr_im(24)
     double precision    ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz, gmax
     character(len=2)    ::  species(n_atoms_max), atom_typ1, atom_typ2
-    character(len=255)  ::  xyz_files(48000), img_file, data_file
+    character(len=255)  ::  xyz_files(48000), img_file, data_file, images_data, descriptors_data
     double complex      ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
     logical             ::  placed, found
 
@@ -53,7 +53,7 @@ module descriptor
     implicit none
 
     character(len=10)   :: id_sim               ! Simulation ID
-    character(len=10)   :: id_sim_bis           ! Simulation ID (after rotation)
+    character(len=24)   :: id_sim_bis           ! Simulation ID + augmentation suffix
     integer             :: n_atoms              ! Number of atoms
     double precision    :: composition          ! Composition
     integer             :: n_steps              ! Number of steps

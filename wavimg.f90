@@ -15,11 +15,10 @@ module wavimg
         use fft, only: fft2
 
 
-        !if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * max(0.5d0/dx, 0.5d0/dy)
-        if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * 0.5d0/dx
+        if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * min(0.5d0/dx, 0.5d0/dy)
         call fft2(wave(1:nx, 1:ny), wave_fft(1:nx, 1:ny), -1)
         call explicit_focus_image
-        image = dble(image_c)
+        image(1:nx, 1:ny) = dble(image_c(1:nx, 1:ny))
         call apply_vibration
         call apply_detector_model
 
@@ -29,7 +28,7 @@ module wavimg
     subroutine apply_vibration
         
         use constants, only: pi
-        use variable, only: image, dx, dy, vib1, vib2, vibdir, dovib, nx, ny, nx, ny
+        use variable, only: image, dx, dy, vib1, vib2, vibdir, dovib, nx, ny
         use fft, only: fft2
 
         integer             ::  nnx, nny, j_px, i_px
@@ -72,12 +71,12 @@ module wavimg
         call fft2(cvib, image_fft, -1)
         vmean = dble(image_fft(1, 1))
         cvib = image_fft / vmean
-        image_complex = dcmplx(image, 0.0d0)
+        image_complex = dcmplx(image(1:nx, 1:ny), 0.0d0)
         call fft2(image_complex, image_fft, -1)
         image_fft = image_fft * conjg(cvib)
         call fft2(image_fft, image_complex, 1)
         image_complex = image_complex / (nx * ny)
-        image = dble(image_complex)
+        image(1:nx, 1:ny) = dble(image_complex)
 
     endsubroutine
 
@@ -124,9 +123,12 @@ module wavimg
         endif
         sc_rad = sc_mrad * 0.001d0
         scpf = (0.5d0*sc_rad) **2
+        ! Gradient de reference de l'enveloppe de coherence spatiale: grad(chi) en w = 0
         wx = 0.0d0
         wy = 0.0d0
         call aberration_gradient
+        dchix0 = dchix
+        dchiy0 = dchiy
         wsum = 0.0d0
         defocus_prefac = pi / lambda
         do j_px = 1, ny
@@ -147,8 +149,6 @@ module wavimg
                 chi0(i_px, j_px) = aberration_chi()
                 envs = 1.0d0
                 if (dopsc .ne. 0) then
-                    dchix0 = dchix
-                    dchiy0 = dchiy
                     call aberration_gradient
                     envs = exp(-scpf*((dchix-dchix0)**2 + (dchiy-dchiy0)**2))
                 endif
