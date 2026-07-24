@@ -63,7 +63,7 @@ program main
         call read_data        
         if (.not. found) cycle
         call extract_largest_cluster
-        if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) cycle
+        !if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) cycle
         call compute_descriptors
     
         do augmentation_index = 1, 10

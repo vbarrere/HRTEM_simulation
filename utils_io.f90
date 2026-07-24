@@ -122,25 +122,24 @@ module utils_io
                             doptc, dopsc, dovib, aberr_re, aberr_im
         use random_utils, only: random_uniform, sample_aberration
 
-        doptc = 1
-        fs = 0.7d0
-        dopsc = 1
-        dovib = 2
-        edge = 0.0d0
+        doptc = 1 ! focal spread (1 = on, 0 = off)
+        fs = 0.7d0 ! ecart-type de focal spread (nm)
+        dopsc = 1 ! Active enveloppe de cohérence spatiale partielle (envs) (1 = on, 0 = off)
+        dovib = 2 ! Mode vibration (1 = isotrope, 2 = anisotrope)
+        edge = 0.0d0 ! Largeur du bord de transition de l'ouverture objective
 
-        sc_mrad = random_uniform(0.05d0, 0.25d0)
-        vib1 = random_uniform(0.005d0, 0.04d0)
-        vib2 = random_uniform(0.005d0, 0.04d0)
-        vibdir = random_uniform(0.0d0, 180.0d0)
-        oapr = random_uniform(20.0d0, 30.0d0)
-        dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0)
-        readout_noise_e = random_uniform(0.0d0, 1.0d0)
+        sc_mrad = random_uniform(0.05d0, 0.25d0) ! Semi angle de convergence de la source (en mrad)
+        vib1 = random_uniform(0.005d0, 0.04d0) ! Amplitude de vibration direction 1 (en nm)
+        vib2 = random_uniform(0.005d0, 0.04d0) ! Amplitude de vibration direction 2 (en nm)
+        vibdir = random_uniform(0.0d0, 180.0d0) ! Direction de vibration (en degrés)
+        oapr = random_uniform(20.0d0, 30.0d0) ! Rayon de l'ouverture objective (en mrad)
+        dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
+        readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
 
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
-        !call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
-        call sample_aberration(2, -20.0d0, -10.0d0) ! Defocus
+        call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism

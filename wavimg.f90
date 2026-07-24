@@ -15,7 +15,8 @@ module wavimg
         use fft, only: fft2
 
 
-        if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * max(0.5d0/dx, 0.5d0/dy)
+        !if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * max(0.5d0/dx, 0.5d0/dy)
+        if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * 0.5d0/dx
         call fft2(wave(1:nx, 1:ny), wave_fft(1:nx, 1:ny), -1)
         call explicit_focus_image
         image = dble(image_c)
