@@ -19,11 +19,11 @@ module slc
         use variable, only: ht, nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax
         use fft, only: fft_index, fft2
 
-        integer             ::  i_px, j_px, mx, my
+        integer             ::  i_px, j_px
         double precision    ::  apod(nx, ny), sigma_lambda
         double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
 
-        lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
+        lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
         sigma_lambda = sigma0 * lambda
         dx = box_hrtem(1) / dble(nx)
         dy = box_hrtem(2) / dble(ny)
@@ -33,13 +33,12 @@ module slc
         call unique_scattering_factors ! Creation d'un tableau de facteurs de diffusion unique pour chaque type d'atome
 
         do i_px = 1, nx
-            mx = fft_index(i_px, nx) ! indices pour espaces reciproques et grille centrée en 0
-            gx(i_px) = dble(mx) / box_hrtem(1) ! Frequence spatiale en x
-            my = fft_index(i_px, ny)
-            gy(i_px) = dble(my) / box_hrtem(2) ! Frequence spatiale en y
+            gx(i_px) = dble(fft_index(i_px, nx)) / box_hrtem(1) ! Frequence spatiale en x
         enddo
-        !gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2)) ! Limite de Nyquist
-        gmax = 0.5d0*nx / box_hrtem(1) ! Limite de Nyquist
+        do j_px = 1, ny
+            gy(j_px) = dble(fft_index(j_px, ny)) / box_hrtem(2) ! Frequence spatiale en y
+        enddo
+        gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2)) ! Limite de Nyquist
         do j_px = 1, ny
             do i_px = 1, nx
                 apod(i_px, j_px) = 0.5d0 - 0.5d0*tanh((sqrt(gx(i_px)**2 + gy(j_px)**2)/gmax -0.9d0) * 30.0d0)
@@ -51,7 +50,7 @@ module slc
                 do i_px = 1, nx
                     g2 = gx(i_px)**2 + gy(j_px)**2
                     call scattering_factor
-                    ftab(1:n_types, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
+                    ftab(index_type, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
                 enddo
             enddo
         enddo
@@ -96,7 +95,7 @@ module slc
     subroutine slice_potential
         
         use constants, only: pi, v0, box_hrtem
-        use variable, only: dz, pos_cluster, nz, nx, ny
+        use variable, only: pos_cluster, nz, nx, ny
         use descriptor, only: n_atoms
 
         integer             ::  i_atom, itype, i_px, j_px
@@ -104,8 +103,9 @@ module slc
         double complex      ::  phase_x(nx), phase_y(ny), shift_y
 
 
-        z0 = (index_slice - 1) / dz
-        z1 = index_slice / dz
+        ! pos_cluster est en coordonnees fractionnaires: bornes de tranche en fractions de l'epaisseur
+        z0 = dble(index_slice - 1) / dble(nz)
+        z1 = dble(index_slice) / dble(nz)
         uhat = dcmplx(0.0d0, 0.0d0)
         slice_count(index_slice) = 0
         do i_atom = 1, n_atoms
@@ -120,8 +120,10 @@ module slc
             do i_px = 1, nx
                 phase = -2.0d0*pi * gx(i_px) * r(1)
                 phase_x(i_px) = dcmplx(cos(phase), sin(phase))
-                phase = -2.0d0*pi * gy(i_px) * r(2)
-                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
+            enddo
+            do j_px = 1, ny
+                phase = -2.0d0*pi * gy(j_px) * r(2)
+                phase_y(j_px) = dcmplx(cos(phase), sin(phase))
             enddo
             do j_px = 1, ny
                 shift_y = phase_y(j_px)
@@ -152,6 +154,7 @@ module slc
                 endif
             enddo
             if (type_index(i_atom) .eq. 0) then
+                if (n_types .ge. n_types_max) stop 'error: more than n_types_max distinct atom types'
                 n_types = n_types + 1
                 atomic_number_type(n_types) = atomic_number(i_atom)
                 biso_type(n_types) = biso(i_atom)
@@ -501,19 +504,14 @@ module slc
         do
             si = si * x * i / (i + 1.0d0)**2
             ei = ei + si
-            
-            ! TEST
             if (ei .ne. ei) then
-                write(*,*) 'error: NaN in ei(), x=',x
+                write(*,*) 'error: NaN in ei(), x=', x
                 stop
             endif
-            
             if(abs(si/x).le.1.0d-6) exit
             i = i + 1
-
-            !TEST
             if (i .gt. 1000) then
-                write(*,*) 'error: ei() did not converge, x=',x
+                write(*,*) 'error: ei() did not converge, x=', x
                 stop
             endif
         enddo

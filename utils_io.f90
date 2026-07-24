@@ -52,7 +52,8 @@ module utils_io
 
 
     subroutine read_xyz
-        
+
+        use constants, only: n_atoms_max
         use variable, only: xyz_files, snapshot_index, pos, species, epot, box
         use descriptor, only: n_atoms
 
@@ -62,6 +63,11 @@ module utils_io
 
         open(10, file=xyz_files(snapshot_index), status='old', action='read')
         read(10, *) n_atoms
+        if (n_atoms .gt. n_atoms_max) then
+            write(*,*) 'error: n_atoms = ', n_atoms, ' exceeds n_atoms_max = ', n_atoms_max, &
+                ' in ', trim(xyz_files(snapshot_index))
+            stop
+        endif
         read(10, '(A)') line
         do i_atom = 1, n_atoms
             read(10, *) species(i_atom)(1:2), pos(1, i_atom), pos(2, i_atom), pos(3, i_atom), epot(i_atom)
@@ -156,17 +162,17 @@ module utils_io
     subroutine save_data
 
         use descriptor
-        use variable, only: size, nx, ny
+        use variable, only: n_ranks, nx, ny, images_data, descriptors_data
 
         integer             :: i_file, ierr, i_px
         character(len=10)   :: rank_suffix
         integer             :: pixel_row(nx*ny)
 
-        open(10, file="data.dat", status='replace')
-        open(11, file="images.dat", status='replace')
+        open(10, file=trim(descriptors_data), status='replace')
+        open(11, file=trim(images_data), status='replace')
         write(10, '(A)') 'id_sim, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, '&
                     'nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index'
-        do i_file = 0, size-1
+        do i_file = 0, n_ranks-1
             write(rank_suffix, '(I0)') i_file
             open(12, file='descriptors_rank_' // trim(adjustl(rank_suffix)) // '.tmp', status='old')
             open(13, file='images_rank_' // trim(adjustl(rank_suffix)) // '.tmp', status='old')
@@ -179,7 +185,7 @@ module utils_io
                 
                     read(13, *, iostat=ierr) id_sim_bis, pixel_row
                 if (ierr.ne.0) exit
-                write(11, '(A)', advance='no') id_sim_bis
+                write(11, '(A)', advance='no') trim(id_sim_bis)
                 do i_px = 1, nx*ny
                     write(11, '(1X,I0)', advance='no') pixel_row(i_px)
                 enddo
@@ -194,22 +200,21 @@ module utils_io
     endsubroutine
 
 
-    subroutine save_data_row
-    
+    subroutine save_data_row(written)
+
         use constants, only: image_unit, descriptor_unit
         use descriptor
-        use variable, only: nx, ny, box, image
+        use variable, only: nx, ny, image
 
-        integer             :: i_px, j_px, qimage(nx, ny)
-        double precision    :: scaled, image_min, image_max
+        logical, intent(out)    :: written
+        integer                 :: i_px, j_px, qimage(nx, ny)
+        double precision        :: scaled, image_min, image_max
 
-        image_min = minval(image)
-        image_max = maxval(image)
-        if (image_max .le. image_min) then
-            qimage = 0
-            return
-        endif
-        write(image_unit, '(A)', advance='no') id_sim_bis
+        written = .false.
+        image_min = minval(image(1:nx, 1:ny))
+        image_max = maxval(image(1:nx, 1:ny))
+        if (image_max .le. image_min) return
+        write(image_unit, '(A)', advance='no') trim(id_sim_bis)
         do j_px = 1, ny
             do i_px = 1, nx
                 scaled = -128.0d0 + 255.0d0 * (image(i_px, j_px) - image_min) / (image_max - image_min)
@@ -219,8 +224,9 @@ module utils_io
         enddo
         write(image_unit, *)
         write(descriptor_unit, *) id_sim_bis, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, &
-            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, box(1)
-    
+            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index
+        written = .true.
+
         endsubroutine
 
 
