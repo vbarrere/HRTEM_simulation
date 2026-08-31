@@ -7,7 +7,7 @@ module constants
     integer, parameter              ::  aberr_periodicity(24) = (/ &
                                             & 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, &
                                             & 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
-    integer, parameter              ::  nx_max = 96, ny_max = 96, nz_max = 15
+    integer, parameter              ::  nx_max = 128, ny_max = 128, nz_max = 15
     integer, parameter              ::  n_atoms_max = 5000, n_types_max = 5
     double precision, parameter     ::  interatomic_distance = 2.889d0
     double precision, parameter     ::  cluster_cutoff = 1.5d0 * interatomic_distance
@@ -37,7 +37,7 @@ module variable
     double precision    ::  pos_cluster(3, n_atoms_max), readout_noise_e, aberr_re(24), aberr_im(24)
     double precision    ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz, gmax
     character(len=2)    ::  species(n_atoms_max), atom_typ1, atom_typ2
-    character(len=255)  ::  xyz_files(48000), img_file, data_file, images_data, descriptors_data
+    character(len=255)  ::  xyz_files(48000), img_file, data_file
     double complex      ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
     logical             ::  placed, found
 
@@ -53,7 +53,7 @@ module descriptor
     implicit none
 
     character(len=10)   :: id_sim               ! Simulation ID
-    character(len=24)   :: id_sim_bis           ! Simulation ID + augmentation suffix
+    character(len=10)   :: id_sim_bis           ! Simulation ID (after rotation)
     integer             :: n_atoms              ! Number of atoms
     double precision    :: composition          ! Composition
     integer             :: n_steps              ! Number of steps

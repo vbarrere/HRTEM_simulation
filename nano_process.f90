@@ -46,8 +46,7 @@ module nano_process
                     stack(stack_top) = j_atom
                     visited(j_atom) = .true.
                     cluster_id(j_atom) = n_clusters
-                    ! Deballage progressif des conditions periodiques: position relative au voisin deja deballe
-                    pos_tmp(:, j_atom) = pos_tmp(:, current_atom) + delta
+                    pos_tmp(:, j_atom) = pos(:, j_atom)
                 enddo
             enddo
         enddo
@@ -74,11 +73,23 @@ module nano_process
             epot(i_cluster) = epot_tmp(i_atom)
         enddo
         n_atoms = largest_size
-
-        ! Le cluster est deja deballe (voir plus haut): il suffit de centrer le centre de masse
+        
+        ! A verifier que ce calcul centre bien le cluster sur la boite de simulation
+        pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) * nint((pos(1, 1:n_atoms) - pos(1, 1) )/ box(1))
+        pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) * nint((pos(2, 1:n_atoms) - pos(2, 1) )/ box(2))
+        pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) * nint((pos(3, 1:n_atoms) - pos(3, 1) )/ box(3))
         pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - sum(pos(1, 1:n_atoms)) / n_atoms
         pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - sum(pos(2, 1:n_atoms)) / n_atoms
         pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - sum(pos(3, 1:n_atoms)) / n_atoms
+        pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) * nint(pos(1, 1:n_atoms) / box(1))
+        pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) * nint(pos(2, 1:n_atoms) / box(2))
+        pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) * nint(pos(3, 1:n_atoms) / box(3))
+        pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - sum(pos(1, 1:n_atoms)) / n_atoms
+        pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - sum(pos(2, 1:n_atoms)) / n_atoms
+        pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - sum(pos(3, 1:n_atoms)) / n_atoms
+        pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) / 2.0d0
+        pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) / 2.0d0
+        pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) / 2.0d0
 
     endsubroutine
     
@@ -88,7 +99,7 @@ module nano_process
         use, intrinsic :: ieee_arithmetic
         use descriptor
         use variable, only: species, pos, atom_typ1, epot
-
+        
         integer             ::  i_atom
         double precision    ::  dist2, radius_limit, term1, term2, term3, radius_limit2
         
@@ -147,7 +158,7 @@ module nano_process
         else
             d_com = ieee_value(d_com, ieee_quiet_nan)
         endif
-        if (gyration_radius .gt. 0.0d0 .and. nat1 .gt. 0 .and. nat2 .gt. 0 .and. &
+        if(gyration_radius .gt. 0.0d0 .and. nat1 .gt. 0 .and. nat2 .gt. 0 .and. &
                 nat1_out + nat2_out .gt. 0 .and. nat1_in + nat2_in .gt. 0) then
             term1 = dble(nat1_out) / dble(nat1_out + nat2_out) - composition
             term2 = dble(nat1_in) / dble(nat1_in + nat2_in) - composition
@@ -167,8 +178,7 @@ module nano_process
         use constants, only: pi
 
         integer             ::  i_atom
-        double precision    ::  u, position_scale, phi, theta, psi, rot_matrix(3, 3)
-        double precision    ::  cf, sf, ct, st, cp, sp
+        double precision    ::  u, position_scale, phi, theta, rot_matrix(3, 3), cp, sp, ct, st
         character(len=10)   ::  str_augmentation_index
 
         do i_atom = 1, n_atoms
@@ -177,29 +187,24 @@ module nano_process
         call random_number(u)
         position_scale = 0.95d0 + 0.1d0 * u
         pos_cluster = pos_cluster * position_scale
-
-        ! Rotation uniforme sur SO(3): angles d'Euler ZYZ avec cos(theta) uniforme sur [-1, 1]
         call random_number(phi)
         call random_number(theta)
-        call random_number(psi)
         phi = 2.0d0 * pi * phi
-        theta = acos(1.0d0 - 2.0d0 * theta)
-        psi = 2.0d0 * pi * psi
+        theta = pi * theta
 
-        cf = cos(phi)
-        sf = sin(phi)
+        cp = cos(phi)
+        sp = sin(phi)
         ct = cos(theta)
         st = sin(theta)
-        cp = cos(psi)
-        sp = sin(psi)
-        rot_matrix(1, 1) = cf*ct*cp - sf*sp
-        rot_matrix(1, 2) = -cf*ct*sp - sf*cp
-        rot_matrix(1, 3) = cf*st
-        rot_matrix(2, 1) = sf*ct*cp + cf*sp
-        rot_matrix(2, 2) = -sf*ct*sp + cf*cp
-        rot_matrix(2, 3) = sf*st
-        rot_matrix(3, 1) = -st*cp
-        rot_matrix(3, 2) = st*sp
+
+        rot_matrix(1, 1) = cp * ct
+        rot_matrix(1, 2) = -sp
+        rot_matrix(1, 3) = cp * st
+        rot_matrix(2, 1) = sp * ct
+        rot_matrix(2, 2) = cp
+        rot_matrix(2, 3) = sp * st
+        rot_matrix(3, 1) = -st
+        rot_matrix(3, 2) = 0.0d0
         rot_matrix(3, 3) = ct
 
         do i_atom = 1, n_atoms

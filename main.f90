@@ -3,7 +3,7 @@ program main
     use mpi
     use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max
     use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data
+                        nx, ny, nz, ht, data_file, found, n_ranks, lambda
     use utils_io
     use nano_process
     use random_utils
@@ -17,7 +17,7 @@ program main
     integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total, image_counter
     integer             ::  n_images_local, n_accepted
     character(len=255)  ::  rank_suffix, rank_images, rank_descriptors
-    character(len=255)  ::  xyz_dir, env_var
+    character(len=255)  ::  xyz_dir, images_data, descriptors_data, env_var
     logical             ::  accepted
 
     call mpi_init(ierr)
@@ -33,17 +33,16 @@ program main
     call get_environment_variable('atom_typ1', atom_typ1)
     call get_environment_variable('atom_typ2', atom_typ2)
     call get_environment_variable('n_px', env_var)
-    read(env_var, *, iostat=ierr) nx, ny ! une valeur ("96") ou deux ("96 128")
-    if (ierr .ne. 0) then
-        read(env_var, *) nx
-        ny = nx
-    endif
+    read(env_var, *) nx
+    read(env_var, *) ny
     call get_environment_variable('nz', env_var)
     read(env_var, *) nz
     call get_environment_variable('ht', env_var)
     read(env_var, *) ht
+
     if (nx .lt. 1 .or. nx .gt. nx_max .or. ny .lt. 1 .or. ny .gt. ny_max) stop 'error: n_px out of range [1, 96]'
     if (nz .lt. 1 .or. nz .gt. nz_max) stop 'error: nz out of range [1, 15]'
+
 
     if(rank.eq.0) call execute_command_line('find ' // xyz_dir // & 
             ' -maxdepth 1 -name "*.xyz" | sort -V > ' // file_list)
@@ -68,7 +67,10 @@ program main
         call read_data        
         if (.not. found) cycle
         call extract_largest_cluster
-        !if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) cycle
+        if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) then
+            write(*,*) "Rank ", rank, ": snapshot ", snapshot_index, " does not contain both atom types. Skipping."
+            cycle
+        endif
         call compute_descriptors
     
         do augmentation_index = 1, 10
@@ -85,11 +87,12 @@ program main
             call run_msa
             call run_wavimg
 
-            call save_data_row(accepted)
+            call save_data_row
+            accepted = .true.
             if (accepted) n_accepted = n_accepted + 1
-            image_counter = image_counter + 1
-            write(*,*) "Rank ", rank, ": image ", image_counter, "/", n_images_local, &
-                " done (snapshot ", snapshot_index, ")"
+            !image_counter = image_counter + 1
+            !write(*,*) "Rank ", rank, ": image ", image_counter, "/", n_images_local, &
+            !    " done (snapshot ", snapshot_index, ")"
         enddo
         accepted_local = accepted_local + n_accepted
     enddo

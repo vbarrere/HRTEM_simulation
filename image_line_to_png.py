@@ -5,10 +5,10 @@ import numpy as np
 from PIL import Image
 
 image_file = "images.dat"
-#image_file = "/home/victor/Data/HRTEM_data/AgCo/Dataset1/images_full.dat"
+#image_file = "/home/victor/Data/HRTEM_data_test/AgCo/Dataset4/images.dat"
 out_dir = "images_png"
-#out_dir="/home/victor/Data/HRTEM_data/AgCo/Dataset1/images_png"
-nx = 96
+#out_dir="/home/victor/Data/HRTEM_data_test/AgCo/Dataset4/images_png"
+nx = 128
 
 os.makedirs(out_dir, exist_ok=True)
 
@@ -20,7 +20,6 @@ with open(image_file) as f:
         id_sim, _, pixels = line.partition(" ")
         img = np.array(pixels.split(), dtype=np.int16)
         img = (img + 128).astype(np.uint8).reshape(nx, nx)
-        #out_png = os.path.join(out_dir, f"image_{line_no:05d}.png")
         out_png = os.path.join(out_dir, f"{id_sim}.png")
         Image.fromarray(img, mode="L").save(out_png)
         print(f"wrote {out_png}")

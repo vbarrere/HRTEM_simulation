@@ -3,19 +3,22 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-np="${1:-40}"
-export xyz_dir="/home/victor/Data/MD_data/AgCo/Dataset2/XYZ"
-export data_file="/home/victor/Data/MD_data/AgCo/Dataset2/data.dat"
+np="${1:-10}"
+export xyz_dir="/home/victor/Data/MD_Data/AgCo/Dataset1/XYZ"
+export data_file="/home/victor/Data/MD_Data/AgCo/Dataset1/data.dat"
 export images_data="images_full.dat"
 export descriptors_data="descriptors_full.dat"
-export max_files=100 # Put -1 to use all files in the dataset
+export max_files=10 # Put -1 to use all files in the dataset
 export atom_typ1="Ag"
 export atom_typ2="Co"
-export n_px=96
+export n_px=128
 export nz=15
 export ht=200.0
 
+
+
 start_time=$(date +%s)
+
 mpirun --use-hwthread-cpus -np "$np" ./main
 
 end_time=$(date +%s)

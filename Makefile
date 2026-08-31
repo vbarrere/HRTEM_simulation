@@ -1,6 +1,5 @@
 FC = mpifort
 FFLAGS ?= -O2 -Wall -Wextra
-# Debug build:
 #FFLAGS ?= -Wall -Wextra -g -O0 -fcheck=all -fbacktrace
 LDLIBS ?= /lib/x86_64-linux-gnu/libfftw3.so.3
 

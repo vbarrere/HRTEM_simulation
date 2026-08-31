@@ -52,8 +52,7 @@ module utils_io
 
 
     subroutine read_xyz
-
-        use constants, only: n_atoms_max
+        
         use variable, only: xyz_files, snapshot_index, pos, species, epot, box
         use descriptor, only: n_atoms
 
@@ -63,11 +62,6 @@ module utils_io
 
         open(10, file=xyz_files(snapshot_index), status='old', action='read')
         read(10, *) n_atoms
-        if (n_atoms .gt. n_atoms_max) then
-            write(*,*) 'error: n_atoms = ', n_atoms, ' exceeds n_atoms_max = ', n_atoms_max, &
-                ' in ', trim(xyz_files(snapshot_index))
-            stop
-        endif
         read(10, '(A)') line
         do i_atom = 1, n_atoms
             read(10, *) species(i_atom)(1:2), pos(1, i_atom), pos(2, i_atom), pos(3, i_atom), epot(i_atom)
@@ -125,7 +119,7 @@ module utils_io
     subroutine read_input
 
         use variable, only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                            doptc, dopsc, dovib, aberr_re, aberr_im
+                            doptc, dopsc, dovib, aberr_re, aberr_im, lambda
         use random_utils, only: random_uniform, sample_aberration
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
@@ -145,16 +139,19 @@ module utils_io
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
-        call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
+        !call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
-        call sample_aberration(6, -15000.0d0, 0.0d0) ! C3 Spherical aberration (Cs)
+        call sample_aberration(6, -20000.0d0, -5000.0d0) ! C3 Spherical aberration (Cs)
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
         call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
         call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
         call sample_aberration(10, 0.0d0, 1500.0d0) ! D4 5th-order term
         call sample_aberration(11, 0.0d0, 1500.0d0) ! A4 5th-order term
+
+        aberr_re(2) = 1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        aberr_im(2) = 0.0d0
 
     endsubroutine
 
@@ -162,14 +159,14 @@ module utils_io
     subroutine save_data
 
         use descriptor
-        use variable, only: n_ranks, nx, ny, images_data, descriptors_data
+        use variable, only: n_ranks, nx, ny
 
         integer             :: i_file, ierr, i_px
         character(len=10)   :: rank_suffix
         integer             :: pixel_row(nx*ny)
 
-        open(10, file=trim(descriptors_data), status='replace')
-        open(11, file=trim(images_data), status='replace')
+        open(10, file="data.dat", status='replace')
+        open(11, file="images.dat", status='replace')
         write(10, '(A)') 'id_sim, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, '&
                     'nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index'
         do i_file = 0, n_ranks-1
@@ -185,7 +182,7 @@ module utils_io
                 
                     read(13, *, iostat=ierr) id_sim_bis, pixel_row
                 if (ierr.ne.0) exit
-                write(11, '(A)', advance='no') trim(id_sim_bis)
+                write(11, '(A)', advance='no') trim(adjustl(id_sim_bis))
                 do i_px = 1, nx*ny
                     write(11, '(1X,I0)', advance='no') pixel_row(i_px)
                 enddo
@@ -200,21 +197,22 @@ module utils_io
     endsubroutine
 
 
-    subroutine save_data_row(written)
-
+    subroutine save_data_row
+    
         use constants, only: image_unit, descriptor_unit
         use descriptor
-        use variable, only: nx, ny, image
+        use variable, only: nx, ny, box, image
 
-        logical, intent(out)    :: written
-        integer                 :: i_px, j_px, qimage(nx, ny)
-        double precision        :: scaled, image_min, image_max
+        integer             :: i_px, j_px, qimage(nx, ny)
+        double precision    :: scaled, image_min, image_max
 
-        written = .false.
         image_min = minval(image(1:nx, 1:ny))
         image_max = maxval(image(1:nx, 1:ny))
-        if (image_max .le. image_min) return
-        write(image_unit, '(A)', advance='no') trim(id_sim_bis)
+        if (image_max .le. image_min) then
+            qimage = 0
+            return
+        endif
+        write(image_unit, '(A)', advance='no') trim(adjustl(id_sim_bis))
         do j_px = 1, ny
             do i_px = 1, nx
                 scaled = -128.0d0 + 255.0d0 * (image(i_px, j_px) - image_min) / (image_max - image_min)
@@ -224,10 +222,9 @@ module utils_io
         enddo
         write(image_unit, *)
         write(descriptor_unit, *) id_sim_bis, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, &
-            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index
-        written = .true.
-
-        endsubroutine
+            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, box(1), coreshell_index
+    
+    endsubroutine
 
 
 endmodule

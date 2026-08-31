@@ -5,4 +5,6 @@
 *.o
 
 main
-test.py
+*.log
+
+prepare_md_data.py
