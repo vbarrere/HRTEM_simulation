@@ -99,7 +99,7 @@ module slc
     subroutine slice_potential
         
         use constants, only: pi, v0, box_hrtem
-        use variable, only: dz, pos_cluster, nz, nx, ny
+        use variable, only: pos_cluster, nz, nx, ny
         use descriptor, only: n_atoms
 
         integer             ::  i_atom, itype, i_px, j_px
@@ -107,10 +107,8 @@ module slc
         double complex      ::  phase_x(nx), phase_y(ny), shift_y
 
 
-        !z0 = (index_slice - 1) / dz
-        !z1 = index_slice / dz
         z0 = dble(index_slice - 1) / dble(nz)
-        z1 = dble(index_slice) / dble(nz) ! A verifier si c'est bien la bonne definition de z0 et z1 pour le calcul de la tranche de potentiel
+        z1 = dble(index_slice) / dble(nz)
 
         uhat = dcmplx(0.0d0, 0.0d0)
         slice_count(index_slice) = 0

@@ -3,7 +3,7 @@ program main
     use mpi
     use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max
     use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, n_ranks, lambda
+                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data
     use utils_io
     use nano_process
     use random_utils
@@ -14,10 +14,10 @@ program main
 
     implicit none
 
-    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total, image_counter
+    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total
     integer             ::  n_images_local, n_accepted
     character(len=255)  ::  rank_suffix, rank_images, rank_descriptors
-    character(len=255)  ::  xyz_dir, images_data, descriptors_data, env_var
+    character(len=255)  ::  xyz_dir, env_var
     logical             ::  accepted
 
     call mpi_init(ierr)
@@ -59,7 +59,6 @@ program main
     open(image_unit, file=rank_images, action='write', status='replace')
     open(descriptor_unit, file=rank_descriptors, action='write', status='replace')
     n_images_local = (last_file - first_file + 1) * 10
-    image_counter = 0
     accepted_local = 0
     do snapshot_index = first_file, last_file
         n_accepted = 0
@@ -72,7 +71,7 @@ program main
             cycle
         endif
         call compute_descriptors
-    
+        
         do augmentation_index = 1, 10
             call stable_seed
             accepted = .false.
@@ -90,9 +89,6 @@ program main
             call save_data_row
             accepted = .true.
             if (accepted) n_accepted = n_accepted + 1
-            !image_counter = image_counter + 1
-            !write(*,*) "Rank ", rank, ": image ", image_counter, "/", n_images_local, &
-            !    " done (snapshot ", snapshot_index, ")"
         enddo
         accepted_local = accepted_local + n_accepted
     enddo

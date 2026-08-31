@@ -159,14 +159,16 @@ module utils_io
     subroutine save_data
 
         use descriptor
-        use variable, only: n_ranks, nx, ny
+        use variable, only: n_ranks, nx, ny, images_data, descriptors_data
 
         integer             :: i_file, ierr, i_px
         character(len=10)   :: rank_suffix
         integer             :: pixel_row(nx*ny)
 
-        open(10, file="data.dat", status='replace')
-        open(11, file="images.dat", status='replace')
+        !open(10, file="data.dat", status='replace')
+        !open(11, file="images.dat", status='replace')
+        open(10, file=descriptors_data, status='replace')
+        open(11, file=images_data, status='replace')
         write(10, '(A)') 'id_sim, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, '&
                     'nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index'
         do i_file = 0, n_ranks-1
