@@ -7,7 +7,7 @@ module constants
     integer, parameter              ::  aberr_periodicity(24) = (/ &
                                             & 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, &
                                             & 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
-    integer, parameter              ::  nx_max = 96, ny_max = 96, nz_max = 15
+    integer, parameter              ::  nx_max = 128, ny_max = 128, nz_max = 15
     integer, parameter              ::  n_atoms_max = 5000, n_types_max = 5
     double precision, parameter     ::  interatomic_distance = 2.889d0
     double precision, parameter     ::  cluster_cutoff = 1.5d0 * interatomic_distance
@@ -31,13 +31,13 @@ module variable
 
     implicit none
 
-    integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, size, nx, ny, nz, n_seed
+    integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, n_ranks, nx, ny, nz, n_seed
     integer             ::  atomic_number(n_atoms_max)
     double precision    ::  box(3), shift(3), biso(n_atoms_max), image(nx_max, ny_max), pos(3, n_atoms_max), epot(n_atoms_max)
     double precision    ::  pos_cluster(3, n_atoms_max), readout_noise_e, aberr_re(24), aberr_im(24)
     double precision    ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz, gmax
     character(len=2)    ::  species(n_atoms_max), atom_typ1, atom_typ2
-    character(len=255)  ::  xyz_files(48000), img_file, data_file
+    character(len=255)  ::  xyz_files(48000), data_file, images_data, descriptors_data
     double complex      ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
     logical             ::  placed, found
 

@@ -119,7 +119,7 @@ module utils_io
     subroutine read_input
 
         use variable, only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                            doptc, dopsc, dovib, aberr_re, aberr_im
+                            doptc, dopsc, dovib, aberr_re, aberr_im, lambda
         use random_utils, only: random_uniform, sample_aberration
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
@@ -139,16 +139,19 @@ module utils_io
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
-        call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
+        !call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
-        call sample_aberration(6, -15000.0d0, 0.0d0) ! C3 Spherical aberration (Cs)
+        call sample_aberration(6, -20000.0d0, -5000.0d0) ! C3 Spherical aberration (Cs)
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
         call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
         call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
         call sample_aberration(10, 0.0d0, 1500.0d0) ! D4 5th-order term
         call sample_aberration(11, 0.0d0, 1500.0d0) ! A4 5th-order term
+
+        aberr_re(2) = 1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        aberr_im(2) = 0.0d0
 
     endsubroutine
 
@@ -156,17 +159,19 @@ module utils_io
     subroutine save_data
 
         use descriptor
-        use variable, only: size, nx, ny
+        use variable, only: n_ranks, nx, ny, images_data, descriptors_data
 
         integer             :: i_file, ierr, i_px
         character(len=10)   :: rank_suffix
         integer             :: pixel_row(nx*ny)
 
-        open(10, file="data.dat", status='replace')
-        open(11, file="images.dat", status='replace')
+        !open(10, file="data.dat", status='replace')
+        !open(11, file="images.dat", status='replace')
+        open(10, file=descriptors_data, status='replace')
+        open(11, file=images_data, status='replace')
         write(10, '(A)') 'id_sim, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, '&
                     'nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, coreshell_index'
-        do i_file = 0, size-1
+        do i_file = 0, n_ranks-1
             write(rank_suffix, '(I0)') i_file
             open(12, file='descriptors_rank_' // trim(adjustl(rank_suffix)) // '.tmp', status='old')
             open(13, file='images_rank_' // trim(adjustl(rank_suffix)) // '.tmp', status='old')
@@ -179,7 +184,7 @@ module utils_io
                 
                     read(13, *, iostat=ierr) id_sim_bis, pixel_row
                 if (ierr.ne.0) exit
-                write(11, '(A)', advance='no') id_sim_bis
+                write(11, '(A)', advance='no') trim(adjustl(id_sim_bis))
                 do i_px = 1, nx*ny
                     write(11, '(1X,I0)', advance='no') pixel_row(i_px)
                 enddo
@@ -203,13 +208,13 @@ module utils_io
         integer             :: i_px, j_px, qimage(nx, ny)
         double precision    :: scaled, image_min, image_max
 
-        image_min = minval(image)
-        image_max = maxval(image)
+        image_min = minval(image(1:nx, 1:ny))
+        image_max = maxval(image(1:nx, 1:ny))
         if (image_max .le. image_min) then
             qimage = 0
             return
         endif
-        write(image_unit, '(A)', advance='no') id_sim_bis
+        write(image_unit, '(A)', advance='no') trim(adjustl(id_sim_bis))
         do j_px = 1, ny
             do i_px = 1, nx
                 scaled = -128.0d0 + 255.0d0 * (image(i_px, j_px) - image_min) / (image_max - image_min)
@@ -219,9 +224,9 @@ module utils_io
         enddo
         write(image_unit, *)
         write(descriptor_unit, *) id_sim_bis, n_atoms, n_steps, initial_temperature, epot_total, composition, gyration_radius, &
-            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, box(1)
+            nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in, d_com, box(1), coreshell_index
     
-        endsubroutine
+    endsubroutine
 
 
 endmodule

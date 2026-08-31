@@ -69,6 +69,7 @@
     
     endfunction
 
+    
     subroutine sample_aberration(index, xmin, xmax)
         
         use constants, only: aberr_periodicity, pi

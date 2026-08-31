@@ -74,6 +74,7 @@ module nano_process
         enddo
         n_atoms = largest_size
         
+        ! A verifier que ce calcul centre bien le cluster sur la boite de simulation
         pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) * nint((pos(1, 1:n_atoms) - pos(1, 1) )/ box(1))
         pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) * nint((pos(2, 1:n_atoms) - pos(2, 1) )/ box(2))
         pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) * nint((pos(3, 1:n_atoms) - pos(3, 1) )/ box(3))
@@ -97,7 +98,7 @@ module nano_process
         
         use, intrinsic :: ieee_arithmetic
         use descriptor
-        use variable, only: species, pos, atom_typ1
+        use variable, only: species, pos, atom_typ1, epot
         
         integer             ::  i_atom
         double precision    ::  dist2, radius_limit, term1, term2, term3, radius_limit2
@@ -124,8 +125,9 @@ module nano_process
             end if
         enddo
         mass_center = mass_center / dble(n_atoms)
-        mass_center_nat1 = mass_center_nat1 / dble(nat1)
-        mass_center_nat2 = mass_center_nat2 / dble(nat2)
+        if (nat1 .gt. 0) mass_center_nat1 = mass_center_nat1 / dble(nat1)
+        if (nat2 .gt. 0) mass_center_nat2 = mass_center_nat2 / dble(nat2)
+        epot_total = sum(epot(1:n_atoms))
 
         gyration_radius = 0.0d0
         do i_atom = 1, n_atoms
@@ -151,8 +153,13 @@ module nano_process
                 endif
             endif
         enddo
-        d_com = sqrt(dot_product(mass_center_nat1 - mass_center_nat2, mass_center_nat1 - mass_center_nat2))
-        if(gyration_radius .gt. 0.0d0) then
+        if (nat1 .gt. 0 .and. nat2 .gt. 0) then
+            d_com = sqrt(dot_product(mass_center_nat1 - mass_center_nat2, mass_center_nat1 - mass_center_nat2))
+        else
+            d_com = ieee_value(d_com, ieee_quiet_nan)
+        endif
+        if(gyration_radius .gt. 0.0d0 .and. nat1 .gt. 0 .and. nat2 .gt. 0 .and. &
+                nat1_out + nat2_out .gt. 0 .and. nat1_in + nat2_in .gt. 0) then
             term1 = dble(nat1_out) / dble(nat1_out + nat2_out) - composition
             term2 = dble(nat1_in) / dble(nat1_in + nat2_in) - composition
             term3 = d_com / (2.0d0 * gyration_radius)
@@ -171,7 +178,7 @@ module nano_process
         use constants, only: pi
 
         integer             ::  i_atom
-        double precision    ::  u, position_scale, phi, theta, rot_matrix(3, 3)
+        double precision    ::  u, position_scale, phi, theta, rot_matrix(3, 3), cp, sp, ct, st
         character(len=10)   ::  str_augmentation_index
 
         do i_atom = 1, n_atoms
@@ -185,15 +192,20 @@ module nano_process
         phi = 2.0d0 * pi * phi
         theta = pi * theta
 
-        rot_matrix(1, 1) = cos(phi) * cos(theta)
-        rot_matrix(1, 2) = -sin(phi)
-        rot_matrix(1, 3) = cos(phi) * sin(theta)
-        rot_matrix(2, 1) = sin(phi) * cos(theta)
-        rot_matrix(2, 2) = cos(phi)
-        rot_matrix(2, 3) = sin(phi) * sin(theta)
-        rot_matrix(3, 1) = -sin(theta)
+        cp = cos(phi)
+        sp = sin(phi)
+        ct = cos(theta)
+        st = sin(theta)
+
+        rot_matrix(1, 1) = cp * ct
+        rot_matrix(1, 2) = -sp
+        rot_matrix(1, 3) = cp * st
+        rot_matrix(2, 1) = sp * ct
+        rot_matrix(2, 2) = cp
+        rot_matrix(2, 3) = sp * st
+        rot_matrix(3, 1) = -st
         rot_matrix(3, 2) = 0.0d0
-        rot_matrix(3, 3) = cos(theta)
+        rot_matrix(3, 3) = ct
 
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = matmul(rot_matrix, pos_cluster(:, i_atom))

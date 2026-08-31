@@ -1,9 +1,9 @@
 program main
 
     use mpi
-    use constants, only: file_list, image_unit, descriptor_unit
+    use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max
     use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, size, lambda
+                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data
     use utils_io
     use nano_process
     use random_utils
@@ -14,15 +14,15 @@ program main
 
     implicit none
 
-    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total, image_counter
+    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total
     integer             ::  n_images_local, n_accepted
     character(len=255)  ::  rank_suffix, rank_images, rank_descriptors
-    character(len=255)  ::  xyz_dir, images_data, descriptors_data, env_var
+    character(len=255)  ::  xyz_dir, env_var
     logical             ::  accepted
 
     call mpi_init(ierr)
     call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
-    call mpi_comm_size(MPI_COMM_WORLD, size, ierr)
+    call mpi_comm_size(MPI_COMM_WORLD, n_ranks, ierr)
 
     call get_environment_variable('xyz_dir', xyz_dir)
     call get_environment_variable('data_file', data_file)
@@ -40,14 +40,18 @@ program main
     call get_environment_variable('ht', env_var)
     read(env_var, *) ht
 
+    if (nx .lt. 1 .or. nx .gt. nx_max .or. ny .lt. 1 .or. ny .gt. ny_max) stop 'error: n_px out of range [1, 96]'
+    if (nz .lt. 1 .or. nz .gt. nz_max) stop 'error: nz out of range [1, 15]'
+
+
     if(rank.eq.0) call execute_command_line('find ' // xyz_dir // & 
             ' -maxdepth 1 -name "*.xyz" | sort -V > ' // file_list)
     call mpi_barrier(MPI_COMM_WORLD, ierr)
 
     call read_file_list
     call load_data
-    first_file = rank * max_files / size + 1
-    last_file  = (rank + 1) * max_files / size
+    first_file = rank * max_files / n_ranks + 1
+    last_file  = (rank + 1) * max_files / n_ranks
     write(rank_suffix, *) rank
     rank_images = 'images_rank_' // trim(adjustl(rank_suffix)) // '.tmp'
     rank_descriptors = 'descriptors_rank_' // trim(adjustl(rank_suffix)) // '.tmp'
@@ -55,7 +59,6 @@ program main
     open(image_unit, file=rank_images, action='write', status='replace')
     open(descriptor_unit, file=rank_descriptors, action='write', status='replace')
     n_images_local = (last_file - first_file + 1) * 10
-    image_counter = 0
     accepted_local = 0
     do snapshot_index = first_file, last_file
         n_accepted = 0
@@ -63,9 +66,12 @@ program main
         call read_data        
         if (.not. found) cycle
         call extract_largest_cluster
-        !if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) cycle
+        if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) then
+            write(*,*) "Rank ", rank, ": snapshot ", snapshot_index, " does not contain both atom types. Skipping."
+            cycle
+        endif
         call compute_descriptors
-    
+        
         do augmentation_index = 1, 10
             call stable_seed
             accepted = .false.
@@ -83,9 +89,6 @@ program main
             call save_data_row
             accepted = .true.
             if (accepted) n_accepted = n_accepted + 1
-            image_counter = image_counter + 1
-            write(*,*) "Rank ", rank, ": image ", image_counter, "/", n_images_local, &
-                " done (snapshot ", snapshot_index, ")"
         enddo
         accepted_local = accepted_local + n_accepted
     enddo

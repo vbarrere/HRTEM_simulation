@@ -23,7 +23,9 @@ module slc
         double precision    ::  apod(nx, ny), sigma_lambda
         double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
 
-        lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
+        !lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
+        lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
+
         sigma_lambda = sigma0 * lambda
         dx = box_hrtem(1) / dble(nx)
         dy = box_hrtem(2) / dble(ny)
@@ -51,7 +53,8 @@ module slc
                 do i_px = 1, nx
                     g2 = gx(i_px)**2 + gy(j_px)**2
                     call scattering_factor
-                    ftab(1:n_types, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
+                    ftab(index_type, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
+                    !ftab(1:n_types, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
                 enddo
             enddo
         enddo
@@ -96,7 +99,7 @@ module slc
     subroutine slice_potential
         
         use constants, only: pi, v0, box_hrtem
-        use variable, only: dz, pos_cluster, nz, nx, ny
+        use variable, only: pos_cluster, nz, nx, ny
         use descriptor, only: n_atoms
 
         integer             ::  i_atom, itype, i_px, j_px
@@ -104,8 +107,9 @@ module slc
         double complex      ::  phase_x(nx), phase_y(ny), shift_y
 
 
-        z0 = (index_slice - 1) / dz
-        z1 = index_slice / dz
+        z0 = dble(index_slice - 1) / dble(nz)
+        z1 = dble(index_slice) / dble(nz)
+
         uhat = dcmplx(0.0d0, 0.0d0)
         slice_count(index_slice) = 0
         do i_atom = 1, n_atoms
@@ -502,18 +506,16 @@ module slc
             si = si * x * i / (i + 1.0d0)**2
             ei = ei + si
             
-            ! TEST
             if (ei .ne. ei) then
-                write(*,*) 'error: NaN in ei(), x=',x
+                write(*,*) 'error: NaN in ei(), x=', x
                 stop
             endif
             
             if(abs(si/x).le.1.0d-6) exit
             i = i + 1
 
-            !TEST
             if (i .gt. 1000) then
-                write(*,*) 'error: ei() did not converge, x=',x
+                write(*,*) 'error: ei() did not converge, x=', x
                 stop
             endif
         enddo
