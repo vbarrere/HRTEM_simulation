@@ -8,7 +8,7 @@ image_file = "images.dat"
 #image_file = "/home/victor/Data/HRTEM_data_test/AgCo/Dataset4/images.dat"
 out_dir = "images_png"
 #out_dir="/home/victor/Data/HRTEM_data_test/AgCo/Dataset4/images_png"
-nx = 128
+nx = 256
 
 os.makedirs(out_dir, exist_ok=True)
 

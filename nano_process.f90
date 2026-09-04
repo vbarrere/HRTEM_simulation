@@ -174,11 +174,11 @@ module nano_process
     subroutine compute_rotation
     
         use descriptor, only: n_atoms, id_sim, id_sim_bis, mass_center
-        use variable, only: pos, pos_cluster, augmentation_index
+        use variable, only: pos, pos_cluster, augmentation_index, phi, theta, position_scale
         use constants, only: pi
 
         integer             ::  i_atom
-        double precision    ::  u, position_scale, phi, theta, rot_matrix(3, 3), cp, sp, ct, st
+        double precision    ::  u, rot_matrix(3, 3), cp, sp, ct, st
         character(len=10)   ::  str_augmentation_index
 
         do i_atom = 1, n_atoms

@@ -8,3 +8,4 @@ main
 *.log
 
 prepare_md_data.py
+test.py
