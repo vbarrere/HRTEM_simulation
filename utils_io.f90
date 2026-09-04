@@ -169,11 +169,9 @@ module utils_io
         !open(11, file="images.dat", status='replace')
         open(10, file=descriptors_data, status='replace')
         open(11, file=images_data, status='replace')
-        write(10, '(A)') 'id_sim n_atoms n_steps initial_temperature epot_total composition gyration_radius &
-                    nat1 nat2 nat1_out nat2_out nat1_in nat2_in d_com coreshell_index phi theta position_scale &
-                    defocus aberr_re_3 aberr_im_3 aberr_re_4 aberr_im_4 aberr_re_5 aberr_im_5 spherical_aberr &
-                    aberr_re_7 aberr_im_7 aberr_re_8 aberr_im_8 aberr_re_9 aberr_im_9 aberr_re_10 aberr_im_10 &
-                    aberr_re_11 aberr_im_11'
+        write(10, '(A)') 'id_sim n_atoms n_steps initial_temperature epot_total composition gyration_radius nat1 nat2 &
+                    & nat1_out nat2_out nat1_in nat2_in d_com coreshell_index phi theta position_scale defocus A1_re A1_im &
+                    & B2_re B2_im A2_re A2_im C3 S3_re S3_im A3_re A3_im B4_re B4_im D4_re D4_im A4_re A4_im'
         do i_file = 0, n_ranks-1
             write(rank_suffix, '(I0)') i_file
             open(12, file='descriptors_rank_' // trim(adjustl(rank_suffix)) // '.tmp', status='old')
