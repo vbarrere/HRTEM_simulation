@@ -136,6 +136,9 @@ module utils_io
         dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
         readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
 
+        !dose_e_per_a2 = random_uniform(300.0d0, 1000.0d0)
+        !readout_noise_e = random_uniform(3.0d0, 5.0d0)
+
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
@@ -143,14 +146,17 @@ module utils_io
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
-        call sample_aberration(6, -20000.0d0, -5000.0d0) ! C3 Spherical aberration (Cs)
+        !call sample_aberration(6, -20000.0d0, -5000.0d0) ! C3 Spherical aberration (Cs)
+        call sample_aberration(6, 5000.0d0, 20000.0d0) ! C3 Spherical aberration (Cs)
+        
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
         call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
         call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
         call sample_aberration(10, 0.0d0, 1500.0d0) ! D4 5th-order term
         call sample_aberration(11, 0.0d0, 1500.0d0) ! A4 5th-order term
 
-        aberr_re(2) = 1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        !aberr_re(2) = 1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        aberr_re(2) = -1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
         aberr_im(2) = 0.0d0
 
     endsubroutine
