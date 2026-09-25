@@ -8,7 +8,8 @@ module constants
                                             & 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, &
                                             & 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
     integer, parameter              ::  nx_max = 256, ny_max = 256, nz_max = 15
-    integer, parameter              ::  n_atoms_max = 5000, n_types_max = 5
+    integer, parameter              ::  n_atoms_max = 5000, n_atoms_substrate_max = 35000, n_types_max = 5
+    integer, parameter              ::  n_atoms_tot_max = n_atoms_max + n_atoms_substrate_max
     double precision, parameter     ::  interatomic_distance = 2.889d0
     double precision, parameter     ::  cluster_cutoff = 1.5d0 * interatomic_distance
     double precision, parameter     ::  pi = acos(-1.0d0)
@@ -21,23 +22,27 @@ module constants
     double precision, parameter     ::  v0 = 0.03809982119d0
     double precision, parameter     ::  box_hrtem(3) = (/ 10.0d0, 10.0d0, 10.0d0 /)
     character(len=255), parameter   ::  file_list = "xyz_file_list.tmp"
+    character(len=255), parameter   ::  substrate_list = "substrate_list.tmp"
     
 endmodule
 
 
 module variable
 
-    use constants, only: n_atoms_max, n_types_max, nx_max, ny_max, nz_max
+    use constants, only: n_atoms_max, n_atoms_substrate_max, n_atoms_tot_max, n_types_max, nx_max, ny_max, nz_max
 
     implicit none
 
     integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, n_ranks, nx, ny, nz, n_seed
-    integer             ::  atomic_number(n_atoms_max)
-    double precision    ::  box(3), shift(3), biso(n_atoms_max), image(nx_max, ny_max), pos(3, n_atoms_max), epot(n_atoms_max)
-    double precision    ::  pos_cluster(3, n_atoms_max), readout_noise_e, aberr_re(24), aberr_im(24), position_scale
+    integer             ::  atomic_number(n_atoms_tot_max), n_atoms_substrate, n_atoms_tot
+    integer             ::  n_substrate_files
+    double precision    ::  box(3), shift(3), biso(n_atoms_tot_max), image(nx_max, ny_max), pos(3, n_atoms_max), epot(n_atoms_max)
+    double precision    ::  pos_cluster(3, n_atoms_tot_max), readout_noise_e, aberr_re(24), aberr_im(24), position_scale
     double precision    ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz, gmax, phi, theta
-    character(len=2)    ::  species(n_atoms_max), atom_typ1, atom_typ2
-    character(len=255)  ::  xyz_files(48000), data_file, images_data, descriptors_data
+    double precision    ::  pos_substrate(3, n_atoms_substrate_max), dbf_c(n_atoms_substrate_max)
+    character(len=2)    ::  species(n_atoms_tot_max), atom_typ1, atom_typ2, species_substrate(n_atoms_substrate_max)
+    character(len=255)  ::  xyz_files(48000), data_file, images_data, descriptors_data, substrate_file
+    character(len=255)  ::  substrate_dir, substrate_files(1000)
     double complex      ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
     logical             ::  placed, found
 

@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 np="${1:-10}"
 export xyz_dir="/home/victor/Data/MD_Data/AgCo/Dataset1/XYZ"
 export data_file="/home/victor/Data/MD_Data/AgCo/Dataset1/data.dat"
+export substrate_dir="/home/victor/Data/carbon_substrates"
 export images_data="images.dat"
 export descriptors_data="data.dat"
 export max_files=10 # Put -1 to use all files in the dataset

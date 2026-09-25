@@ -4,7 +4,7 @@ module slc
 
     implicit none
 
-    integer             ::  index_type, n_types, type_index(n_atoms_max), atomic_number_type(n_types_max), index_slice
+    integer             ::  index_type, n_types, type_index(n_atoms_max+35000), atomic_number_type(n_types_max), index_slice
     integer             ::  slice_count(nz_max)
     double precision    ::  volume_slc, f_re, f_im, gthr2, gx(nx_max), gy(ny_max), biso_type(n_types_max), a(2), b(6)
     double complex      ::  uhat(nx_max, ny_max), trans_fft(nx_max, ny_max), ftab(n_types_max, nx_max, ny_max)
@@ -99,7 +99,7 @@ module slc
     subroutine slice_potential
         
         use constants, only: pi, v0, box_hrtem
-        use variable, only: pos_cluster, nz, nx, ny
+        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
         use descriptor, only: n_atoms
 
         integer             ::  i_atom, itype, i_px, j_px
@@ -112,7 +112,7 @@ module slc
 
         uhat = dcmplx(0.0d0, 0.0d0)
         slice_count(index_slice) = 0
-        do i_atom = 1, n_atoms
+        do i_atom = 1, n_atoms_tot
             if (index_slice .lt. nz) then
                 if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .ge. z1) cycle
             else
@@ -142,12 +142,12 @@ module slc
     subroutine unique_scattering_factors
 
         use descriptor, only: n_atoms
-        use variable, only: atomic_number, biso
+        use variable, only: atomic_number, biso, n_atoms_tot
 
         integer ::  i_atom, i_type
 
         n_types = 0
-        do i_atom = 1, n_atoms
+        do i_atom = 1, n_atoms_tot
             type_index(i_atom) = 0
             do i_type = 1, n_types
                 if (atomic_number(i_atom) .eq. atomic_number_type(i_type) .and. abs(biso(i_atom)-biso_type(i_type)).le.1.0d-12) then
@@ -162,9 +162,9 @@ module slc
                 type_index(i_atom) = n_types
             endif
         enddo
-
+        write(*,*) 'n_types = ', n_types, ' n_atoms_tot = ', n_atoms_tot
     endsubroutine
-
+    
 
     subroutine scattering_factor
 

@@ -33,6 +33,25 @@ module utils_io
 
     endsubroutine
 
+    subroutine read_substrate_list
+    
+        use constants, only: substrate_list
+        use variable, only: substrate_files, n_substrate_files
+
+        integer :: ierr, i_file
+
+        n_substrate_files = 0
+        open(10, file=substrate_list, status='old', action='read')
+        do i_file = 1, size(substrate_files)
+            read(10, '(A)', iostat=ierr) substrate_files(i_file)
+            if (ierr /= 0) exit
+            n_substrate_files = n_substrate_files + 1
+        enddo
+        close(10)
+        if (n_substrate_files .eq. 0) stop 'error: no substrate files found'
+
+    endsubroutine
+
 
     subroutine load_data
 

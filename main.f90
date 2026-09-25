@@ -1,9 +1,9 @@
 program main
 
     use mpi
-    use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max
+    use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max, substrate_list
     use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data
+                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data, substrate_dir
     use utils_io
     use nano_process
     use random_utils
@@ -26,6 +26,7 @@ program main
 
     call get_environment_variable('xyz_dir', xyz_dir)
     call get_environment_variable('data_file', data_file)
+    call get_environment_variable('substrate_dir', substrate_dir)
     call get_environment_variable('images_data', images_data)
     call get_environment_variable('descriptors_data', descriptors_data)
     call get_environment_variable('max_files', env_var)
@@ -46,9 +47,14 @@ program main
 
     if(rank.eq.0) call execute_command_line('find ' // xyz_dir // & 
             ' -maxdepth 1 -name "*.xyz" | sort -V > ' // file_list)
+    if(rank.eq.0) call execute_command_line('find ' // trim(substrate_dir) // &
+        ' -maxdepth 1 -name "*.xyz" | sort -V > ' // substrate_list)
+
+    if (rank .eq. 0) call execute_command_line('mkdir -p xyz_substrate')
     call mpi_barrier(MPI_COMM_WORLD, ierr)
 
     call read_file_list
+    call read_substrate_list
     call load_data
     first_file = rank * max_files / n_ranks + 1
     last_file  = (rank + 1) * max_files / n_ranks
@@ -66,12 +72,11 @@ program main
         call read_data        
         if (.not. found) cycle
         call extract_largest_cluster
-        if (count(species .eq. atom_typ1) .eq. 0 .or. count(species .ne. atom_typ1) .eq. 0) then
+        if (count(species(1:n_atoms) .eq. atom_typ1) .eq. 0 .or. count(species(1:n_atoms) .ne. atom_typ1) .eq. 0) then
             write(*,*) "Rank ", rank, ": snapshot ", snapshot_index, " does not contain both atom types. Skipping."
             cycle
         endif
         call compute_descriptors
-        
         do augmentation_index = 1, 10
             call stable_seed
             accepted = .false.
@@ -79,6 +84,11 @@ program main
             call compute_rotation
             call place_in_box
             if (.not. placed) cycle
+            call choose_substrate
+            call read_substrate_file
+            call add_substrate_to_cluster
+            if (.not. placed) cycle
+            !call save_xyz
             call read_input
             call prepare_hrtem_particle
             
@@ -108,6 +118,7 @@ program main
     call mpi_barrier(mpi_comm_world, ierr)
     call execute_command_line('rm -f ' // trim(rank_images) // ' ' // trim(rank_descriptors), exitstat=ierr)
     if (rank .eq. 0) call execute_command_line('rm -f ' // file_list, exitstat=ierr)
+    if (rank .eq. 0) call execute_command_line('rm -f ' // substrate_list, exitstat=ierr)
 
 
     call mpi_finalize(ierr)

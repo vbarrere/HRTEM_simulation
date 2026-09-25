@@ -244,23 +244,118 @@ module nano_process
         placed = .true.
     
     endsubroutine
+
+
+    subroutine choose_substrate
+
+        use variable, only: substrate_file, substrate_files, n_substrate_files
+
+        integer :: k
+        double precision :: u
+
+        call random_number(u)
+        k = min(int(u * n_substrate_files) + 1, n_substrate_files)
+        substrate_file = substrate_files(k)
+
+    endsubroutine
+
+
+    subroutine read_substrate_file
+
+        use constants, only: pi
+        use variable, only: substrate_file, n_atoms_substrate, pos_substrate, species_substrate, dbf_c
+        
+        integer ::  i_atom
+        character(len=255)  ::  line
+
+        open(10, file=substrate_file, status='old', action='read')
+        read(10, *) n_atoms_substrate
+        read(10, '(A)') line
+        do i_atom = 1, n_atoms_substrate
+            read(10, *) species_substrate(i_atom)(1:2), pos_substrate(1, i_atom), pos_substrate(2, i_atom), &
+                            pos_substrate(3, i_atom), dbf_c(i_atom)
+        enddo
+        close(10)
+        dbf_c(1:n_atoms_substrate) = 0.01d0 * 8.0d0 * pi**2 / 6.0d0 * sum(dbf_c(1:n_atoms_substrate)) / dble(n_atoms_substrate)
+
+    endsubroutine
+
+
+    subroutine add_substrate_to_cluster
+        
+        use constants, only: box_hrtem
+        use variable, only: n_atoms_tot, pos_cluster, pos_substrate, species_substrate, species, n_atoms_substrate, placed
+        use descriptor, only: n_atoms
+
+        integer ::  i_atom
+        double precision :: z_shift, z_low
+
+        z_shift = minval(pos_cluster(3, 1:n_atoms)) - maxval(pos_substrate(3, 1:n_atoms_substrate)) - 2.0d0
+
+        do i_atom = 1, n_atoms_substrate
+            pos_cluster(1:2, n_atoms + i_atom) = pos_substrate(1:2, i_atom)
+            pos_cluster(3, n_atoms + i_atom) = pos_substrate(3, i_atom) + z_shift
+            species(n_atoms + i_atom) = species_substrate(i_atom)
+        enddo
+        n_atoms_tot = n_atoms + n_atoms_substrate
+        ! si le substrat sort par le bas, on remonte tout l'ensemble
+        z_low = minval(pos_cluster(3, 1:n_atoms_tot))
+        if (z_low .lt. 0.0d0) pos_cluster(3, 1:n_atoms_tot) = pos_cluster(3, 1:n_atoms_tot) - z_low
+
+        ! puis on vérifie que le cluster rentre encore en haut
+        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. box_hrtem(3) * 10.0d0) then
+            placed = .false.
+            write(*,*) "Cluster with substrate does not fit in the box height. Skipping."
+        endif
+
+    endsubroutine
     
 
+    subroutine save_xyz
+
+        use constants, only: box_hrtem
+        use variable, only: pos_cluster, species, n_atoms_tot
+        use descriptor, only: id_sim_bis
+
+        integer             ::  i_atom, unit_xyz
+        double precision    ::  lattice(3)
+        character(len=255)  ::  filename, header
+
+        lattice = box_hrtem * 10.0d0
+        filename = 'xyz_substrate/' // trim(id_sim_bis) // '.xyz'
+
+        write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
+            ' 0.0 0.0 0.0 ', lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
+
+        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
+        write(unit_xyz, '(I0)') n_atoms_tot
+        write(unit_xyz, '(A)') trim(header)
+        do i_atom = 1, n_atoms_tot
+            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos_cluster(:, i_atom)
+        enddo
+        close(unit_xyz)
+
+    endsubroutine
+
+    
     subroutine prepare_hrtem_particle
         
         use constants, only: dbf_ag, dbf_co, box_hrtem
         use descriptor, only: n_atoms
-        use variable, only: species, atom_typ1, pos_cluster, atomic_number, biso
+        use variable, only: species, atom_typ1, atom_typ2, pos_cluster, atomic_number, biso, dbf_c, n_atoms_tot
 
         integer ::  i_atom
 
-        do i_atom = 1, n_atoms
+        do i_atom = 1, n_atoms_tot
             if (species(i_atom) .eq. atom_typ1) then
                 atomic_number(i_atom) = 47
                 biso(i_atom) = dbf_ag
-            else
+            else if (species(i_atom) .eq. atom_typ2) then
                 atomic_number(i_atom) = 27
                 biso(i_atom) = dbf_co
+            else 
+                atomic_number(i_atom) = 6
+                biso(i_atom) = dbf_c(i_atom - n_atoms)
             endif
             pos_cluster(:, i_atom) = pos_cluster(:, i_atom) / (box_hrtem*10.0d0)
         enddo
