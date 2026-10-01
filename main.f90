@@ -41,8 +41,8 @@ program main
     call get_environment_variable('ht', env_var)
     read(env_var, *) ht
 
-    if (nx .lt. 1 .or. nx .gt. nx_max .or. ny .lt. 1 .or. ny .gt. ny_max) stop 'error: n_px out of range [1, 96]'
-    if (nz .lt. 1 .or. nz .gt. nz_max) stop 'error: nz out of range [1, 15]'
+    if (nx .lt. 1 .or. nx .gt. nx_max .or. ny .lt. 1 .or. ny .gt. ny_max) stop 'error: n_px out of range [1, 256]'
+    if (nz .lt. 1 .or. nz .gt. nz_max) stop 'error: nz out of range [1, 20]'
 
 
     if(rank.eq.0) call execute_command_line('find ' // xyz_dir // & 
@@ -88,7 +88,7 @@ program main
             call read_substrate_file
             call add_substrate_to_cluster
             if (.not. placed) cycle
-            !call save_xyz
+            call save_xyz
             call read_input
             call prepare_hrtem_particle
             

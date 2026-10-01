@@ -13,7 +13,7 @@ export max_files=10 # Put -1 to use all files in the dataset
 export atom_typ1="Ag"
 export atom_typ2="Co"
 export n_px=128
-export nz=15
+export nz=20
 export ht=200.0
 
 

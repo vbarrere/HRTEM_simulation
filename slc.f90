@@ -1,215 +1,29 @@
 module slc
 
-    use constants, only: nx_max, ny_max, nz_max, n_types_max, n_atoms_max
+    use constants, only: nx_max, ny_max, nz_max, n_types_max, n_atoms_max, n_atoms_tot_max
 
     implicit none
 
-    integer             ::  index_type, n_types, type_index(n_atoms_max+35000), atomic_number_type(n_types_max), index_slice
+    integer             ::  n_types, type_index(n_atoms_max+35000), atomic_number_type(n_types_max)
     integer             ::  slice_count(nz_max)
     double precision    ::  volume_slc, f_re, f_im, gthr2, gx(nx_max), gy(ny_max), biso_type(n_types_max), a(2), b(6)
     double complex      ::  uhat(nx_max, ny_max), trans_fft(nx_max, ny_max), ftab(n_types_max, nx_max, ny_max)
 
-
-    contains
-
-
-    subroutine run_slc
-
-        use constants, only: hc, e0, sigma0, box_hrtem
-        use variable, only: ht, nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax
-        use fft, only: fft_index, fft2
-
-        integer             ::  i_px, j_px, mx, my
-        double precision    ::  apod(nx, ny), sigma_lambda
-        double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
-
-        !lambda = hc / sqrt(ht * 2.0d0 * e0 + ht)
-        lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
-
-        sigma_lambda = sigma0 * lambda
-        dx = box_hrtem(1) / dble(nx)
-        dy = box_hrtem(2) / dble(ny)
-        dz = box_hrtem(3) / dble(nz)
-        volume_slc = box_hrtem(1) * box_hrtem(2) * dz
-
-        call unique_scattering_factors ! Creation d'un tableau de facteurs de diffusion unique pour chaque type d'atome
-
-        do i_px = 1, nx
-            mx = fft_index(i_px, nx) ! indices pour espaces reciproques et grille centrée en 0
-            gx(i_px) = dble(mx) / box_hrtem(1) ! Frequence spatiale en x
-            my = fft_index(i_px, ny)
-            gy(i_px) = dble(my) / box_hrtem(2) ! Frequence spatiale en y
-        enddo
-        !gmax = min(0.5d0*nx / box_hrtem(1), 0.5d0*ny / box_hrtem(2)) ! Limite de Nyquist
-        gmax = 0.5d0*nx / box_hrtem(1) ! Limite de Nyquist
-        do j_px = 1, ny
-            do i_px = 1, nx
-                apod(i_px, j_px) = 0.5d0 - 0.5d0*tanh((sqrt(gx(i_px)**2 + gy(j_px)**2)/gmax -0.9d0) * 30.0d0)
-            enddo
-        enddo
-
-        do index_type = 1, n_types
-            do j_px = 1, ny
-                do i_px = 1, nx
-                    g2 = gx(i_px)**2 + gy(j_px)**2
-                    call scattering_factor
-                    ftab(index_type, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
-                    !ftab(1:n_types, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
-                enddo
-            enddo
-        enddo
-
-        do index_slice = 1, nz
-            call slice_potential
-            call fft2(uhat(1:nx, 1:ny), pot, 1)
-            trans(1:nx, 1:ny, index_slice) = exp(dcmplx(0.0d0, sigma_lambda * dz) * pot)
-            call fft2(trans(1:nx, 1:ny, index_slice), trans_fft(1:nx, 1:ny), -1)
-            gthr2 = (gmax * (2.0d0/3.0d0)) ** 2
-            call apply_hard_aperture
-            call fft2(trans_fft(1:nx, 1:ny), trans_filtered, 1)
-            trans(1:nx, 1:ny, index_slice) = trans_filtered / (nx * ny)
-        enddo
+    integer             ::  slice(nz_max, n_atoms_tot_max)
 
 
-    endsubroutine
-
-
-    subroutine apply_hard_aperture
-
-        use constants, only: box_hrtem
-        use variable, only: nx, ny
-        use fft, only: fft_index
-
-        integer             ::  i_px, j_px, mx, my
-        double precision    ::  gx_hrtem, gy_hrtem
-
-        do j_px = 1, ny        
-            my = fft_index(j_px, ny)
-            gy_hrtem = my / box_hrtem(2)
-            do i_px = 1, nx
-                mx = fft_index(i_px, nx)
-                gx_hrtem = mx / box_hrtem(1)
-                if (gx_hrtem**2 + gy_hrtem**2 .gt. gthr2) trans_fft(i_px, j_px) = dcmplx(0.0d0, 0.0d0)
-            enddo
-        enddo
-    
-    endsubroutine
-
-
-    subroutine slice_potential
-        
-        use constants, only: pi, v0, box_hrtem
-        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
-        use descriptor, only: n_atoms
-
-        integer             ::  i_atom, itype, i_px, j_px
-        double precision    ::  z0, z1, r(2), phase
-        double complex      ::  phase_x(nx), phase_y(ny), shift_y
-
-
-        z0 = dble(index_slice - 1) / dble(nz)
-        z1 = dble(index_slice) / dble(nz)
-
-        uhat = dcmplx(0.0d0, 0.0d0)
-        slice_count(index_slice) = 0
-        do i_atom = 1, n_atoms_tot
-            if (index_slice .lt. nz) then
-                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .ge. z1) cycle
-            else
-                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .gt. z1) cycle
-            endif
-            slice_count(index_slice) = slice_count(index_slice) + 1
-            itype = type_index(i_atom)
-            r = pos_cluster(1:2, i_atom) * box_hrtem(1:2)
-            do i_px = 1, nx
-                phase = -2.0d0*pi * gx(i_px) * r(1)
-                phase_x(i_px) = dcmplx(cos(phase), sin(phase))
-                phase = -2.0d0*pi * gy(i_px) * r(2)
-                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
-            enddo
-            do j_px = 1, ny
-                shift_y = phase_y(j_px)
-                do i_px = 1, nx
-                    uhat(i_px, j_px) = uhat(i_px, j_px) + ftab(itype, i_px, j_px) * phase_x(i_px) * shift_y
-                enddo
-            enddo
-        enddo
-        uhat = (v0 / volume_slc) * uhat
-
-    endsubroutine
-
-
-    subroutine unique_scattering_factors
-
-        use descriptor, only: n_atoms
-        use variable, only: atomic_number, biso, n_atoms_tot
-
-        integer ::  i_atom, i_type
-
-        n_types = 0
-        do i_atom = 1, n_atoms_tot
-            type_index(i_atom) = 0
-            do i_type = 1, n_types
-                if (atomic_number(i_atom) .eq. atomic_number_type(i_type) .and. abs(biso(i_atom)-biso_type(i_type)).le.1.0d-12) then
-                    type_index(i_atom) = i_type
-                    exit
-                endif
-            enddo
-            if (type_index(i_atom) .eq. 0) then
-                n_types = n_types + 1
-                atomic_number_type(n_types) = atomic_number(i_atom)
-                biso_type(n_types) = biso(i_atom)
-                type_index(i_atom) = n_types
-            endif
-        enddo
-        write(*,*) 'n_types = ', n_types, ' n_atoms_tot = ', n_atoms_tot
-    endsubroutine
-    
-
-    subroutine scattering_factor
-
-        use constants, only: e0, hc, pi, r8pi2
-        use variable, only: g2, ht
-
-        double precision    ::  gamma, ua, ga, k0, dwf, g
-
-        g = sqrt(g2)
-        call get_weko
-
-        gamma = (e0 + ht) / e0
-        dwf = exp(-0.25d0*biso_type(index_type)*g2)
-        f_re = 0.1d0 * gamma * 4.0d0*pi * weko_real(0.05d0 * g) * dwf
-
-        f_im = 0.0d0
-        if(biso_type(index_type) .gt. 0.0d0 .and. abs(f_re) .gt. tiny(f_re)) then
-            ua = 10.0d0 * sqrt(biso_type(index_type) * r8pi2)
-            ga = 0.1d0 * g * 2.0d0*pi
-            k0 = 2.0d0*pi/hc*0.1d0 * sqrt((2.0d0*e0 + ht) * ht)
-            f_im = 0.1d0 * gamma**2 * weko_imag(ga, ua) / k0
-        endif
-
-    endsubroutine
-
-
-    subroutine get_weko
-
-        integer             ::  i
-        double precision    ::  v(1:98), bb(6, 1:98)
-
-        v = (/ &
-            & 0.5d0, 0.5d0, 0.5d0, 0.3d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, &
-            & 0.5d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.2d0, 0.3d0, &
-            & 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, &
-            & 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.2d0, 0.3d0, 0.5d0, 0.5d0, &
-            & 0.5d0, 0.5d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.5d0, 0.3d0, 0.4d0, 0.6d0, &
-            & 0.6d0, 0.6d0, 0.4d0, 0.4d0, 0.1d0, 0.1d0, 0.3d0, 0.3d0, 0.2d0, 0.2d0, &
-            & 0.2d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.1d0, &
-            & 0.1d0, 0.1d0, 0.4d0, 0.2d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.4d0, 0.4d0, &
-            & 0.4d0, 0.3d0, 0.4d0, 0.4d0, 0.4d0, 0.4d0, 0.1d0, 0.2d0, 0.2d0, 0.3d0, &
-            & 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.3d0, 0.2d0, 0.3d0 /)
-
-        bb = reshape((/ &
-            & 48.75740d0,  4.96588d0, 18.24440d0, 18.24440d0, 18.24440d0, 18.24440d0, &
+    double precision, parameter ::  v(1:98) = (/ 0.5d0, 0.5d0, 0.5d0, 0.3d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, &
+                                                & 0.5d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.2d0, 0.3d0, &
+                                                & 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, &
+                                                & 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.5d0, 0.2d0, 0.3d0, 0.5d0, 0.5d0, &
+                                                & 0.5d0, 0.5d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.5d0, 0.3d0, 0.4d0, 0.6d0, &
+                                                & 0.6d0, 0.6d0, 0.4d0, 0.4d0, 0.1d0, 0.1d0, 0.3d0, 0.3d0, 0.2d0, 0.2d0, &
+                                                & 0.2d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.2d0, 0.1d0, 0.1d0, &
+                                                & 0.1d0, 0.1d0, 0.4d0, 0.2d0, 0.5d0, 0.4d0, 0.5d0, 0.5d0, 0.4d0, 0.4d0, &
+                                                & 0.4d0, 0.3d0, 0.4d0, 0.4d0, 0.4d0, 0.4d0, 0.1d0, 0.2d0, 0.2d0, 0.3d0, &
+                                                & 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.3d0, 0.2d0, 0.3d0 /)
+    double precision, parameter ::  bb(6, 1:98) = reshape((/ &
+            &  48.75740d0,  4.96588d0, 18.24440d0, 18.24440d0, 18.24440d0, 18.24440d0, &
             &  2.54216d0,  8.74302d0, 12.69098d0,  0.43711d0,  5.29446d0, 28.25045d0, &
             &  0.68454d0,  3.06497d0,  6.23974d0,126.17816d0,131.20160d0,131.76538d0, &
             &  0.53996d0,  3.38752d0, 55.62340d0, 50.78098d0, 67.00502d0, 96.36635d0, &
@@ -308,8 +122,239 @@ module slc
             &  0.07088d0,  0.77587d0,  6.14295d0,  1.79036d0, 15.12379d0, 83.56983d0, &
             &  0.06164d0,  0.81363d0,  6.56165d0,  0.83805d0,  4.18914d0, 61.41408d0 /), (/ 6, 98 /))
 
-        a(1) = 0.023933659d0 * dble(atomic_number_type(index_type)) / (3.0d0 * (1.0d0 + v(atomic_number_type(index_type))))
-        a(2) = v(atomic_number_type(index_type)) * a(1)
+    
+    contains
+
+
+    subroutine run_slc
+
+        use constants, only: hc, e0, sigma0, box_hrtem
+        use variable, only: ht, nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax, n_atoms_tot, pos_cluster
+        use fft, only: fft_index, fft2
+
+        integer             ::  i_px, j_px, mx, my, index_slice, index_type, i_atom
+        double precision    ::  apod(nx, ny), sigma_lambda
+        double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
+
+        !integer             ::  tab_n_atoms_slice(nz), slice(nz, n_atoms_tot)
+
+        lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
+
+        sigma_lambda = sigma0 * lambda
+        dx = box_hrtem(1) / dble(nx)
+        dy = box_hrtem(2) / dble(ny)
+        dz = box_hrtem(3) / dble(nz)
+        volume_slc = box_hrtem(1) * box_hrtem(2) * dz
+
+        call unique_scattering_factors ! Creation d'un tableau de facteurs de diffusion unique pour chaque type d'atome
+
+        do i_px = 1, nx
+            mx = fft_index(i_px, nx) ! indices pour espaces reciproques et grille centrée en 0
+            gx(i_px) = dble(mx) / box_hrtem(1) ! Frequence spatiale en x
+            my = fft_index(i_px, ny)
+            gy(i_px) = dble(my) / box_hrtem(2) ! Frequence spatiale en y
+        enddo
+        gmax = 0.5d0*nx / box_hrtem(1) ! Limite de Nyquist
+        do j_px = 1, ny
+            do i_px = 1, nx
+                apod(i_px, j_px) = 0.5d0 - 0.5d0*tanh((sqrt(gx(i_px)**2 + gy(j_px)**2)/gmax -0.9d0) * 30.0d0)
+            enddo
+        enddo
+
+        do index_type = 1, n_types
+            call get_weko(index_type)
+            do j_px = 1, ny
+                do i_px = 1, nx
+                    g2 = gx(i_px)**2 + gy(j_px)**2
+                    call scattering_factor(index_type)
+                    ftab(index_type, i_px, j_px) = apod(i_px, j_px) * dcmplx(f_re, f_im)
+                enddo
+            enddo
+        enddo
+
+        slice_count = 0
+        do i_atom = 1, n_atoms_tot
+            index_slice = int((pos_cluster(3, i_atom) + 0.5d0) * dble(nz)) + 1
+            if (index_slice .lt. 1) index_slice = 1
+            if (index_slice .gt. nz) index_slice = nz
+            slice_count(index_slice) = slice_count(index_slice) + 1
+            slice(index_slice, slice_count(index_slice)) = i_atom
+        enddo
+
+        do index_slice = 1, nz
+            !call slice_potential(index_slice)
+            call slice_potential2(index_slice)
+            call fft2(uhat(1:nx, 1:ny), pot, 1)
+            trans(1:nx, 1:ny, index_slice) = exp(dcmplx(0.0d0, sigma_lambda * dz) * pot)
+            call fft2(trans(1:nx, 1:ny, index_slice), trans_fft(1:nx, 1:ny), -1)
+            gthr2 = (gmax * (2.0d0/3.0d0)) ** 2
+            call apply_hard_aperture
+            call fft2(trans_fft(1:nx, 1:ny), trans_filtered, 1)
+            trans(1:nx, 1:ny, index_slice) = trans_filtered / (nx * ny)
+        enddo
+        if (sum(slice_count(1:nz)) .ne. n_atoms_tot) &
+            write(*,*) 'WARNING: ', n_atoms_tot - sum(slice_count(1:nz)), ' atoms outside the slices'
+
+
+    endsubroutine
+
+
+    subroutine apply_hard_aperture
+
+        use constants, only: box_hrtem
+        use variable, only: nx, ny
+        use fft, only: fft_index
+
+        integer             ::  i_px, j_px, mx, my
+        double precision    ::  gx_hrtem, gy_hrtem
+
+        do j_px = 1, ny        
+            my = fft_index(j_px, ny)
+            gy_hrtem = my / box_hrtem(2)
+            do i_px = 1, nx
+                mx = fft_index(i_px, nx)
+                gx_hrtem = mx / box_hrtem(1)
+                if (gx_hrtem**2 + gy_hrtem**2 .gt. gthr2) trans_fft(i_px, j_px) = dcmplx(0.0d0, 0.0d0)
+            enddo
+        enddo
+    
+    endsubroutine
+
+    subroutine slice_potential2(index_slice)
+    
+        use constants, only: pi, v0, box_hrtem
+        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
+
+        integer             ::  i_atom, i_type, i_px, j_px
+        double precision    ::  r(2), phase
+        double complex      ::  phase_x(nx), phase_y(ny), shift_y
+        integer, intent(in) ::  index_slice
+
+        uhat = dcmplx(0.0d0, 0.0d0)
+        do i_atom = 1, slice_count(index_slice)
+            i_type = type_index(slice(index_slice, i_atom))
+            r = pos_cluster(1:2, slice(index_slice, i_atom)) * box_hrtem(1:2)
+            do i_px = 1, nx
+                phase = -2.0d0*pi * gx(i_px) * r(1)
+                phase_x(i_px) = dcmplx(cos(phase), sin(phase))
+                phase = -2.0d0*pi * gy(i_px) * r(2)
+                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
+            enddo
+            do j_px = 1, ny
+                shift_y = phase_y(j_px)
+                do i_px = 1, nx
+                    uhat(i_px, j_px) = uhat(i_px, j_px) + ftab(i_type, i_px, j_px) * phase_x(i_px) * shift_y
+                enddo
+            enddo
+
+
+        enddo
+        uhat = (v0 / volume_slc) * uhat
+
+    endsubroutine
+
+
+
+    subroutine slice_potential(index_slice)
+        
+        use constants, only: pi, v0, box_hrtem
+        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
+
+        integer             ::  i_atom, itype, i_px, j_px
+        double precision    ::  z0, z1, r(2), phase
+        double complex      ::  phase_x(nx), phase_y(ny), shift_y
+        integer, intent(in) ::  index_slice
+
+        z0 = dble(index_slice - 1) / dble(nz) - 0.5d0
+        z1 = dble(index_slice) / dble(nz) - 0.5d0
+
+        uhat = dcmplx(0.0d0, 0.0d0)
+        slice_count(index_slice) = 0
+        do i_atom = 1, n_atoms_tot
+            if (index_slice .lt. nz) then
+                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .ge. z1) cycle
+            else
+                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .gt. z1) cycle
+            endif
+            slice_count(index_slice) = slice_count(index_slice) + 1
+            itype = type_index(i_atom)
+            r = pos_cluster(1:2, i_atom) * box_hrtem(1:2)
+            do i_px = 1, nx
+                phase = -2.0d0*pi * gx(i_px) * r(1)
+                phase_x(i_px) = dcmplx(cos(phase), sin(phase))
+                phase = -2.0d0*pi * gy(i_px) * r(2)
+                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
+            enddo
+            do j_px = 1, ny
+                shift_y = phase_y(j_px)
+                do i_px = 1, nx
+                    uhat(i_px, j_px) = uhat(i_px, j_px) + ftab(itype, i_px, j_px) * phase_x(i_px) * shift_y
+                enddo
+            enddo
+        enddo
+        uhat = (v0 / volume_slc) * uhat
+
+    endsubroutine
+
+
+    subroutine unique_scattering_factors
+
+        use variable, only: atomic_number, biso, n_atoms_tot
+
+        integer ::  i_atom, i_type
+
+        n_types = 0
+        do i_atom = 1, n_atoms_tot
+            type_index(i_atom) = 0
+            do i_type = 1, n_types
+                if (atomic_number(i_atom) .eq. atomic_number_type(i_type) .and. abs(biso(i_atom)-biso_type(i_type)).le.1.0d-12) then
+                    type_index(i_atom) = i_type
+                    exit
+                endif
+            enddo
+            if (type_index(i_atom) .eq. 0) then
+                n_types = n_types + 1
+                atomic_number_type(n_types) = atomic_number(i_atom)
+                biso_type(n_types) = biso(i_atom)
+                type_index(i_atom) = n_types
+            endif
+        enddo
+
+    endsubroutine
+    
+
+    subroutine scattering_factor(index_type)
+
+        use constants, only: e0, hc, pi, r8pi2
+        use variable, only: g2, ht
+
+        double precision    ::  gamma, ua, ga, k0, dwf, g
+        integer, intent(in) ::  index_type
+
+        g = sqrt(g2)
+        gamma = (e0 + ht) / e0
+        dwf = exp(-0.25d0*biso_type(index_type)*g2)
+        f_re = 0.1d0 * gamma * 4.0d0*pi * weko_real(0.05d0 * g) * dwf
+        f_im = 0.0d0
+        if(biso_type(index_type) .gt. 0.0d0 .and. abs(f_re) .gt. tiny(f_re)) then
+            ua = 10.0d0 * sqrt(biso_type(index_type) * r8pi2)
+            ga = 0.1d0 * g * 2.0d0*pi
+            k0 = 2.0d0*pi/hc*0.1d0 * sqrt((2.0d0*e0 + ht) * ht)
+            f_im = 0.1d0 * gamma**2 * weko_imag(ga, ua) / k0
+        endif
+
+    endsubroutine
+
+
+    subroutine get_weko(index_type)
+
+        integer             ::  i
+        double precision    ::  v_val
+        integer, intent(in) ::  index_type
+        
+        v_val = v(atomic_number_type(index_type))
+        a(1) = 0.023933659d0 * dble(atomic_number_type(index_type)) / (3.0d0 * (1.0d0 + v_val))
+        a(2) = v_val * a(1)
         do i = 1, 6
             b(i) = bb(i, atomic_number_type(index_type))
         enddo

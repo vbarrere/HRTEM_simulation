@@ -241,8 +241,9 @@ module nano_process
         shift(1:2) = -min_coord(1:2) + lateral_border_margin + u * free_lateral
         shift(3) = -min_coord(3) + 0.5d0 * (box_size(3) - span(3))
         pos_cluster(:, 1:n_atoms) = pos_cluster(:, 1:n_atoms) + spread(shift, dim=2, ncopies=n_atoms)
+        pos_cluster(3, 1:n_atoms) = pos_cluster(3, 1:n_atoms) - sum(pos_cluster(3, 1:n_atoms)) / dble(n_atoms)
         placed = .true.
-    
+
     endsubroutine
 
 
@@ -285,10 +286,10 @@ module nano_process
         
         use constants, only: box_hrtem
         use variable, only: n_atoms_tot, pos_cluster, pos_substrate, species_substrate, species, n_atoms_substrate, placed
-        use descriptor, only: n_atoms
+        use descriptor, only: n_atoms, id_sim_bis
 
         integer ::  i_atom
-        double precision :: z_shift, z_low
+        double precision :: z_shift
 
         z_shift = minval(pos_cluster(3, 1:n_atoms)) - maxval(pos_substrate(3, 1:n_atoms_substrate)) - 2.0d0
 
@@ -298,14 +299,12 @@ module nano_process
             species(n_atoms + i_atom) = species_substrate(i_atom)
         enddo
         n_atoms_tot = n_atoms + n_atoms_substrate
-        ! si le substrat sort par le bas, on remonte tout l'ensemble
-        z_low = minval(pos_cluster(3, 1:n_atoms_tot))
-        if (z_low .lt. 0.0d0) pos_cluster(3, 1:n_atoms_tot) = pos_cluster(3, 1:n_atoms_tot) - z_low
 
         ! puis on vérifie que le cluster rentre encore en haut
-        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. box_hrtem(3) * 10.0d0) then
+        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. 0.5d0 * box_hrtem(3) * 10.0d0 .and. minval(pos_cluster(3, 1:n_atoms_tot)) &
+                    &.lt. 0.5d0 * box_hrtem(3) * 10.0d0) then
             placed = .false.
-            write(*,*) "Cluster with substrate does not fit in the box height. Skipping."
+            write(*,*) "Cluster with substrate does not fit in the box height. Skipping. (id_sim_bis = ", trim(id_sim_bis), ")"
         endif
 
     endsubroutine
@@ -326,7 +325,6 @@ module nano_process
 
         write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
             ' 0.0 0.0 0.0 ', lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
-
         open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
         write(unit_xyz, '(I0)') n_atoms_tot
         write(unit_xyz, '(A)') trim(header)
