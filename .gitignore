@@ -1,5 +1,6 @@
 *.dat
 /images_png
+/xyz_substrate
 *.tmp
 *.mod
 *.o

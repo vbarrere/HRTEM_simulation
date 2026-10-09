@@ -179,7 +179,6 @@ module nano_process
 
         integer             ::  i_atom
         double precision    ::  u, rot_matrix(3, 3), cp, sp, ct, st
-        character(len=10)   ::  str_augmentation_index
 
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = pos(:, i_atom) - mass_center
@@ -210,9 +209,7 @@ module nano_process
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = matmul(rot_matrix, pos_cluster(:, i_atom))
         enddo
-        write(str_augmentation_index, '(I0)') augmentation_index
-        id_sim_bis = trim(id_sim) // "_" // trim(adjustl(str_augmentation_index))
-
+        id_sim_bis = (id_sim-1) * 10 + augmentation_index - 1
     endsubroutine
 
 
@@ -241,26 +238,119 @@ module nano_process
         shift(1:2) = -min_coord(1:2) + lateral_border_margin + u * free_lateral
         shift(3) = -min_coord(3) + 0.5d0 * (box_size(3) - span(3))
         pos_cluster(:, 1:n_atoms) = pos_cluster(:, 1:n_atoms) + spread(shift, dim=2, ncopies=n_atoms)
+        pos_cluster(3, 1:n_atoms) = pos_cluster(3, 1:n_atoms) - sum(pos_cluster(3, 1:n_atoms)) / dble(n_atoms)
         placed = .true.
-    
+
+    endsubroutine
+
+
+    subroutine choose_substrate
+
+        use variable, only: substrate_file, substrate_files, n_substrate_files
+
+        integer :: k
+        double precision :: u
+
+        call random_number(u)
+        k = min(int(u * n_substrate_files) + 1, n_substrate_files)
+        substrate_file = substrate_files(k)
+
+    endsubroutine
+
+
+    subroutine read_substrate_file
+
+        use variable, only: substrate_file, n_atoms_substrate, pos_substrate, species_substrate, dbf_c
+        
+        integer ::  i_atom
+        character(len=255)  ::  line
+
+        open(10, file=substrate_file, status='old', action='read')
+        read(10, *) n_atoms_substrate
+        read(10, '(A)') line
+        do i_atom = 1, n_atoms_substrate
+            read(10, *) species_substrate(i_atom)(1:2), pos_substrate(1, i_atom), pos_substrate(2, i_atom), &
+                            pos_substrate(3, i_atom), dbf_c(i_atom)
+        enddo
+        close(10)
+        dbf_c(1:n_atoms_substrate) = 0.01d0 *sum(dbf_c(1:n_atoms_substrate)) / dble(n_atoms_substrate)
+
+    endsubroutine
+
+
+    subroutine add_substrate_to_cluster
+        
+        use constants, only: box_hrtem
+        use variable, only: n_atoms_tot, pos_cluster, pos_substrate, species_substrate, species, n_atoms_substrate, placed
+        use descriptor, only: n_atoms, id_sim_bis
+
+        integer ::  i_atom
+        double precision :: z_shift
+
+        z_shift = minval(pos_cluster(3, 1:n_atoms)) - maxval(pos_substrate(3, 1:n_atoms_substrate)) - 2.0d0
+
+        do i_atom = 1, n_atoms_substrate
+            pos_cluster(1:2, n_atoms + i_atom) = pos_substrate(1:2, i_atom)
+            pos_cluster(3, n_atoms + i_atom) = pos_substrate(3, i_atom) + z_shift
+            species(n_atoms + i_atom) = species_substrate(i_atom)
+        enddo
+        n_atoms_tot = n_atoms + n_atoms_substrate
+
+        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. 0.5d0 * box_hrtem(3) * 10.0d0 .or. minval(pos_cluster(3, 1:n_atoms_tot)) &
+                    &.lt. -0.5d0 * box_hrtem(3) * 10.0d0) then
+            placed = .false.
+            write(*,*) "Cluster with substrate does not fit in the box height. Skipping. (id_sim = ", id_sim_bis, ")"
+        endif
+
     endsubroutine
     
 
+    subroutine save_xyz
+
+        use constants, only: box_hrtem
+        use variable, only: pos_cluster, species, n_atoms_tot
+        use descriptor, only: id_sim_bis
+
+        integer             ::  i_atom, unit_xyz
+        double precision    ::  lattice(3)
+        character(len=255)  ::  filename, header
+        character(len=255)  ::  id_str
+
+        lattice = box_hrtem * 10.0d0
+        write(id_str, '(I0)') id_sim_bis
+        filename = 'xyz_substrate/' // trim(id_str) // '.xyz'
+
+        write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
+            ' 0.0 0.0 0.0 ', lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
+        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
+        write(unit_xyz, '(I0)') n_atoms_tot
+        write(unit_xyz, '(A)') trim(header)
+        do i_atom = 1, n_atoms_tot
+            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos_cluster(:, i_atom)
+        enddo
+        close(unit_xyz)
+
+    endsubroutine
+
+    
     subroutine prepare_hrtem_particle
         
         use constants, only: dbf_ag, dbf_co, box_hrtem
         use descriptor, only: n_atoms
-        use variable, only: species, atom_typ1, pos_cluster, atomic_number, biso
+        use variable, only: species, atom_typ1, atom_typ2, pos_cluster, atomic_number, biso, dbf_c, n_atoms_tot
 
         integer ::  i_atom
 
-        do i_atom = 1, n_atoms
+        do i_atom = 1, n_atoms_tot
             if (species(i_atom) .eq. atom_typ1) then
                 atomic_number(i_atom) = 47
                 biso(i_atom) = dbf_ag
-            else
+            else if (species(i_atom) .eq. atom_typ2) then
                 atomic_number(i_atom) = 27
                 biso(i_atom) = dbf_co
+            else 
+                atomic_number(i_atom) = 6
+                biso(i_atom) = dbf_c(i_atom - n_atoms)
             endif
             pos_cluster(:, i_atom) = pos_cluster(:, i_atom) / (box_hrtem*10.0d0)
         enddo
