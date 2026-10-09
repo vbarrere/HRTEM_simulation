@@ -126,19 +126,17 @@ module slc
     contains
 
 
+
     subroutine run_slc
 
-        use constants, only: hc, e0, sigma0, box_hrtem
-        use variable, only: ht, nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax, n_atoms_tot, pos_cluster
+        use constants, only: sigma0, box_hrtem
+        use variable, only: nx, ny, nz, lambda, dx, dy, dz, g2, trans, gmax, n_atoms_tot, pos_cluster
         use fft, only: fft_index, fft2
 
         integer             ::  i_px, j_px, mx, my, index_slice, index_type, i_atom
         double precision    ::  apod(nx, ny), sigma_lambda
         double complex      ::  pot(nx, ny), trans_filtered(nx, ny)
 
-        !integer             ::  tab_n_atoms_slice(nz), slice(nz, n_atoms_tot)
-
-        lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
 
         sigma_lambda = sigma0 * lambda
         dx = box_hrtem(1) / dble(nx)
@@ -182,8 +180,7 @@ module slc
         enddo
 
         do index_slice = 1, nz
-            !call slice_potential(index_slice)
-            call slice_potential2(index_slice)
+            call slice_potential(index_slice)
             call fft2(uhat(1:nx, 1:ny), pot, 1)
             trans(1:nx, 1:ny, index_slice) = exp(dcmplx(0.0d0, sigma_lambda * dz) * pot)
             call fft2(trans(1:nx, 1:ny, index_slice), trans_fft(1:nx, 1:ny), -1)
@@ -197,6 +194,7 @@ module slc
 
 
     endsubroutine
+
 
 
     subroutine apply_hard_aperture
@@ -220,10 +218,12 @@ module slc
     
     endsubroutine
 
-    subroutine slice_potential2(index_slice)
+
+
+    subroutine slice_potential(index_slice)
     
         use constants, only: pi, v0, box_hrtem
-        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
+        use variable, only: pos_cluster, nx, ny
 
         integer             ::  i_atom, i_type, i_px, j_px
         double precision    ::  r(2), phase
@@ -246,55 +246,11 @@ module slc
                     uhat(i_px, j_px) = uhat(i_px, j_px) + ftab(i_type, i_px, j_px) * phase_x(i_px) * shift_y
                 enddo
             enddo
-
-
         enddo
         uhat = (v0 / volume_slc) * uhat
 
     endsubroutine
 
-
-
-    subroutine slice_potential(index_slice)
-        
-        use constants, only: pi, v0, box_hrtem
-        use variable, only: pos_cluster, nz, nx, ny, n_atoms_tot
-
-        integer             ::  i_atom, itype, i_px, j_px
-        double precision    ::  z0, z1, r(2), phase
-        double complex      ::  phase_x(nx), phase_y(ny), shift_y
-        integer, intent(in) ::  index_slice
-
-        z0 = dble(index_slice - 1) / dble(nz) - 0.5d0
-        z1 = dble(index_slice) / dble(nz) - 0.5d0
-
-        uhat = dcmplx(0.0d0, 0.0d0)
-        slice_count(index_slice) = 0
-        do i_atom = 1, n_atoms_tot
-            if (index_slice .lt. nz) then
-                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .ge. z1) cycle
-            else
-                if (pos_cluster(3, i_atom) .lt. z0 .or. pos_cluster(3, i_atom) .gt. z1) cycle
-            endif
-            slice_count(index_slice) = slice_count(index_slice) + 1
-            itype = type_index(i_atom)
-            r = pos_cluster(1:2, i_atom) * box_hrtem(1:2)
-            do i_px = 1, nx
-                phase = -2.0d0*pi * gx(i_px) * r(1)
-                phase_x(i_px) = dcmplx(cos(phase), sin(phase))
-                phase = -2.0d0*pi * gy(i_px) * r(2)
-                phase_y(i_px) = dcmplx(cos(phase), sin(phase))
-            enddo
-            do j_px = 1, ny
-                shift_y = phase_y(j_px)
-                do i_px = 1, nx
-                    uhat(i_px, j_px) = uhat(i_px, j_px) + ftab(itype, i_px, j_px) * phase_x(i_px) * shift_y
-                enddo
-            enddo
-        enddo
-        uhat = (v0 / volume_slc) * uhat
-
-    endsubroutine
 
 
     subroutine unique_scattering_factors
@@ -323,6 +279,7 @@ module slc
     endsubroutine
     
 
+
     subroutine scattering_factor(index_type)
 
         use constants, only: e0, hc, pi, r8pi2
@@ -346,6 +303,7 @@ module slc
     endsubroutine
 
 
+
     subroutine get_weko(index_type)
 
         integer             ::  i
@@ -360,6 +318,7 @@ module slc
         enddo
 
     endsubroutine
+
 
     
     double precision function weko_real(s)
@@ -381,6 +340,7 @@ module slc
             endif
         enddo
     endfunction
+
 
 
     double precision function weko_imag(g, ul)
@@ -409,6 +369,7 @@ module slc
     endfunction
 
 
+
     double precision function ri1(bi, bj, g)
 
         use constants, only: pi, euler
@@ -433,6 +394,7 @@ module slc
         ri1 = pi * ri1 / g2
 
     endfunction
+
 
 
     double precision function ri2(bi, bj, g, ul)
@@ -477,6 +439,7 @@ module slc
     endfunction
 
 
+
     double precision function rih1(x1, x2, x3)
 
         double precision, intent(in)    ::  x1, x2, x3
@@ -498,6 +461,7 @@ module slc
     endfunction
 
 
+
     double precision function rih2(x)
 
         integer                         ::  i, i1
@@ -517,6 +481,7 @@ module slc
         rih2 = f(i) + 200.0d0*(f(i1)-f(i))*(x1 - 0.005d0*dble(i))
     
     endfunction
+
 
 
     double precision function ei(x)
@@ -550,8 +515,7 @@ module slc
         do
             si = si * x * i / (i + 1.0d0)**2
             ei = ei + si
-            
-            if (ei .ne. ei) then
+            if (isnan(ei)) then
                 write(*,*) 'error: NaN in ei(), x=', x
                 stop
             endif

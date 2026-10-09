@@ -2,7 +2,7 @@ module utils_io
 
     implicit none
     
-    character(len=10)   :: id_sim_tab(48000)
+    integer             :: id_sim_tab(48000)
     integer             :: n_atoms_tab(48000), n_steps_tab(48000)
     double precision    :: composition_tab(48000), initial_temperature_tab(48000)
 
@@ -104,7 +104,8 @@ module utils_io
         use descriptor, only: id_sim, n_atoms, composition, n_steps, initial_temperature
 
         integer             :: i_file, idx
-        character(len=255)  :: id_from_file, filename, basename
+        character(len=255)  :: filename, basename
+        integer             :: id_from_file
 
         filename = xyz_files(snapshot_index)
         idx = index(filename, '/', back=.true.)
@@ -113,13 +114,13 @@ module utils_io
         else
             basename = filename
         end if
-        id_from_file = basename(1:index(basename, '.xyz')-1)
+        read(basename(1:index(basename, '.xyz')-1), *) id_from_file
         found = .false.
         do i_file = 1, size(xyz_files)
-            if (trim(id_sim_tab(i_file)) .eq. id_from_file) then
+            if (id_sim_tab(i_file) .eq. id_from_file) then
                 if (n_atoms_tab(i_file) .ne. n_atoms) then
                     write(*,*) "error: n_atoms mismatch for snapshot ", snapshot_index, ": n_atoms in xyz file = ", n_atoms, &
-                        ", n_atoms in data file = ", n_atoms_tab(i_file), " (id_sim = ", trim(id_sim_tab(i_file)), ")"
+                        ", n_atoms in data file = ", n_atoms_tab(i_file), " (id_sim = ", id_sim_tab(i_file), ")"
                 else
                     found = .true.
                     id_sim = id_sim_tab(i_file)
@@ -137,9 +138,12 @@ module utils_io
 
     subroutine read_input
 
+        use constants, only: box_hrtem
         use variable, only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                            doptc, dopsc, dovib, aberr_re, aberr_im, lambda
+                            doptc, dopsc, dovib, aberr_re, aberr_im, lambda, pos_cluster
         use random_utils, only: random_uniform, sample_aberration
+        use descriptor, only: n_atoms
+
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
         fs = 0.7d0 ! ecart-type de focal spread (nm)
@@ -155,17 +159,12 @@ module utils_io
         dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
         readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
 
-        !dose_e_per_a2 = random_uniform(300.0d0, 1000.0d0)
-        !readout_noise_e = random_uniform(3.0d0, 5.0d0)
-
         aberr_re = 0.0d0
         aberr_im = 0.0d0
         
-        !call sample_aberration(2, -2.0d0, -1.0d0) ! Defocus
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
-        !call sample_aberration(6, -20000.0d0, -5000.0d0) ! C3 Spherical aberration (Cs)
         call sample_aberration(6, 5000.0d0, 20000.0d0) ! C3 Spherical aberration (Cs)
         
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
@@ -174,8 +173,9 @@ module utils_io
         call sample_aberration(10, 0.0d0, 1500.0d0) ! D4 5th-order term
         call sample_aberration(11, 0.0d0, 1500.0d0) ! A4 5th-order term
 
-        !aberr_re(2) = 1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
-        aberr_re(2) = -1.2 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        ! Définition du defocus peut être à revoir
+        aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - maxval(pos_cluster(3,1:n_atoms))) * 0.1d0
         aberr_im(2) = 0.0d0
 
     endsubroutine
@@ -190,8 +190,6 @@ module utils_io
         character(len=10)   :: rank_suffix
         integer             :: pixel_row(nx*ny)
 
-        !open(10, file="data.dat", status='replace')
-        !open(11, file="images.dat", status='replace')
         open(10, file=descriptors_data, status='replace')
         open(11, file=images_data, status='replace')
         write(10, '(A)') 'id_sim n_atoms n_steps initial_temperature epot_total composition gyration_radius nat1 nat2 &
@@ -215,7 +213,7 @@ module utils_io
                     aberr_re(11), aberr_im(11)
                     read(13, *, iostat=ierr) id_sim_bis, pixel_row
                 if (ierr.ne.0) exit
-                write(11, '(A)', advance='no') trim(adjustl(id_sim_bis))
+                write(11, '(I0)', advance='no') id_sim_bis
                 do i_px = 1, nx*ny
                     write(11, '(1X,I0)', advance='no') pixel_row(i_px)
                 enddo
@@ -245,7 +243,7 @@ module utils_io
             qimage = 0
             return
         endif
-        write(image_unit, '(A)', advance='no') trim(adjustl(id_sim_bis))
+        write(image_unit, '(I0)', advance='no') id_sim_bis
         do j_px = 1, ny
             do i_px = 1, nx
                 scaled = -128.0d0 + 255.0d0 * (image(i_px, j_px) - image_min) / (image_max - image_min)

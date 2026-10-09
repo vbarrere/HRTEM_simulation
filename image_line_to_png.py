@@ -6,7 +6,7 @@ from PIL import Image
 
 image_file = "images.dat"
 out_dir = "images_png"
-nx = 128
+nx = 256
 
 os.makedirs(out_dir, exist_ok=True)
 

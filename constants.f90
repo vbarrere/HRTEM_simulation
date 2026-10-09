@@ -14,7 +14,7 @@ module constants
     double precision, parameter     ::  cluster_cutoff = 1.5d0 * interatomic_distance
     double precision, parameter     ::  pi = acos(-1.0d0)
     double precision, parameter     ::  lateral_border_margin = 2.0d0
-    double precision, parameter     ::  dbf_ag = 0.019d0, dbf_co = 0.015d0
+    double precision, parameter     ::  dbf_ag = 0.019d0, dbf_co = 0.015d0 ! nm²
     double precision, parameter     ::  hc = 1.2398419843320026d0 ! Planck's constant times speed of light
     double precision, parameter     ::  e0 = 510.99895069d0, sigma0 = 2.0886573497d0
     double precision, parameter     ::  r8pi2 = 1.0d0/(8.0d0*pi*pi)
@@ -57,8 +57,8 @@ module descriptor
 
     implicit none
 
-    character(len=10)   :: id_sim               ! Simulation ID
-    character(len=10)   :: id_sim_bis           ! Simulation ID (after rotation)
+    integer             :: id_sim               ! Simulation ID
+    integer             :: id_sim_bis           ! Simulation ID (after rotation)
     integer             :: n_atoms              ! Number of atoms
     double precision    :: composition          ! Composition
     integer             :: n_steps              ! Number of steps

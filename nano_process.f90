@@ -179,7 +179,6 @@ module nano_process
 
         integer             ::  i_atom
         double precision    ::  u, rot_matrix(3, 3), cp, sp, ct, st
-        character(len=10)   ::  str_augmentation_index
 
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = pos(:, i_atom) - mass_center
@@ -210,9 +209,7 @@ module nano_process
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = matmul(rot_matrix, pos_cluster(:, i_atom))
         enddo
-        write(str_augmentation_index, '(I0)') augmentation_index
-        id_sim_bis = trim(id_sim) // "_" // trim(adjustl(str_augmentation_index))
-
+        id_sim_bis = (id_sim-1) * 10 + augmentation_index - 1
     endsubroutine
 
 
@@ -263,7 +260,6 @@ module nano_process
 
     subroutine read_substrate_file
 
-        use constants, only: pi
         use variable, only: substrate_file, n_atoms_substrate, pos_substrate, species_substrate, dbf_c
         
         integer ::  i_atom
@@ -277,7 +273,7 @@ module nano_process
                             pos_substrate(3, i_atom), dbf_c(i_atom)
         enddo
         close(10)
-        dbf_c(1:n_atoms_substrate) = 0.01d0 * 8.0d0 * pi**2 / 6.0d0 * sum(dbf_c(1:n_atoms_substrate)) / dble(n_atoms_substrate)
+        dbf_c(1:n_atoms_substrate) = 0.01d0 *sum(dbf_c(1:n_atoms_substrate)) / dble(n_atoms_substrate)
 
     endsubroutine
 
@@ -300,11 +296,10 @@ module nano_process
         enddo
         n_atoms_tot = n_atoms + n_atoms_substrate
 
-        ! puis on vérifie que le cluster rentre encore en haut
-        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. 0.5d0 * box_hrtem(3) * 10.0d0 .and. minval(pos_cluster(3, 1:n_atoms_tot)) &
-                    &.lt. 0.5d0 * box_hrtem(3) * 10.0d0) then
+        if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. 0.5d0 * box_hrtem(3) * 10.0d0 .or. minval(pos_cluster(3, 1:n_atoms_tot)) &
+                    &.lt. -0.5d0 * box_hrtem(3) * 10.0d0) then
             placed = .false.
-            write(*,*) "Cluster with substrate does not fit in the box height. Skipping. (id_sim_bis = ", trim(id_sim_bis), ")"
+            write(*,*) "Cluster with substrate does not fit in the box height. Skipping. (id_sim = ", id_sim_bis, ")"
         endif
 
     endsubroutine
@@ -319,9 +314,11 @@ module nano_process
         integer             ::  i_atom, unit_xyz
         double precision    ::  lattice(3)
         character(len=255)  ::  filename, header
+        character(len=255)  ::  id_str
 
         lattice = box_hrtem * 10.0d0
-        filename = 'xyz_substrate/' // trim(id_sim_bis) // '.xyz'
+        write(id_str, '(I0)') id_sim_bis
+        filename = 'xyz_substrate/' // trim(id_str) // '.xyz'
 
         write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
             ' 0.0 0.0 0.0 ', lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'

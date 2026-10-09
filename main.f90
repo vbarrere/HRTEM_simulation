@@ -1,9 +1,10 @@
 program main
 
     use mpi
-    use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max, substrate_list
+    use constants, only: file_list, image_unit, descriptor_unit, nx_max, ny_max, nz_max, substrate_list, hc, e0
     use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data, substrate_dir
+                        nx, ny, nz, ht, data_file, found, n_ranks, images_data, descriptors_data, substrate_dir, &
+                        lambda
     use utils_io
     use nano_process
     use random_utils
@@ -50,7 +51,7 @@ program main
     if(rank.eq.0) call execute_command_line('find ' // trim(substrate_dir) // &
         ' -maxdepth 1 -name "*.xyz" | sort -V > ' // substrate_list)
 
-    if (rank .eq. 0) call execute_command_line('mkdir -p xyz_substrate')
+    !if (rank .eq. 0) call execute_command_line('mkdir -p xyz_substrate')
     call mpi_barrier(MPI_COMM_WORLD, ierr)
 
     call read_file_list
@@ -66,6 +67,7 @@ program main
     open(descriptor_unit, file=rank_descriptors, action='write', status='replace')
     n_images_local = (last_file - first_file + 1) * 10
     accepted_local = 0
+    lambda = hc / sqrt(ht * (2.0d0 * e0 + ht))
     do snapshot_index = first_file, last_file
         n_accepted = 0
         call read_xyz
@@ -88,7 +90,7 @@ program main
             call read_substrate_file
             call add_substrate_to_cluster
             if (.not. placed) cycle
-            call save_xyz
+            !call save_xyz
             call read_input
             call prepare_hrtem_particle
             
