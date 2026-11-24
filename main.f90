@@ -1,24 +1,21 @@
 program main
 
     use mpi
-    use constants, only: file_list, record_unit, nx_max, nz_max, substrate_list, hc, e0
-    use variable, only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        nx, ny, nz, ht, data_file, found, n_ranks, output_data, substrate_dir, &
-                        lambda
+    use constants,  only: file_list, record_unit, nx_max, nz_max, substrate_list, hc, e0
+    use variable,   only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
+                        & nx, ny, nz, ht, data_file, found, n_ranks, output_data, substrate_dir, lambda, n_rotations
     use utils_io
     use nano_process
     use random_utils
-    use slc, only: run_slc
-    use msa, only: run_msa
-    use wavimg, only: run_wavimg
+    use slc,        only: run_slc
+    use msa,        only: run_msa
+    use wavimg,     only: run_wavimg
     use descriptor
 
     implicit none
 
-    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total
-    integer             ::  n_images_local, n_accepted
-    character(len=255)  ::  rank_suffix, rank_records
-    character(len=255)  ::  xyz_dir, env_var
+    integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total, n_images_local, n_accepted
+    character(len=255)  ::  rank_suffix, rank_records, xyz_dir, env_var
     logical             ::  accepted
 
     call mpi_init(ierr)
@@ -29,10 +26,12 @@ program main
     call get_environment_variable('data_file', data_file)
     call get_environment_variable('substrate_dir', substrate_dir)
     call get_environment_variable('output_data', output_data)
-    call get_environment_variable('max_files', env_var)
-    read(env_var, *) max_files
     call get_environment_variable('atom_typ1', atom_typ1)
     call get_environment_variable('atom_typ2', atom_typ2)
+    call get_environment_variable('max_files', env_var)
+    read(env_var, *) max_files
+    call get_environment_variable('n_rotations', env_var)
+    read(env_var, *) n_rotations
     call get_environment_variable('n_px', env_var)
     read(env_var, *) nx
     ny = nx ! grille carree uniquement
@@ -51,7 +50,6 @@ program main
     if(rank.eq.0) call execute_command_line('find ' // trim(substrate_dir) // &
         ' -maxdepth 1 -name "*.xyz" -printf "%f\n" | sort -V > ' // substrate_list)
 
-    if (rank .eq. 0) call execute_command_line('mkdir -p xyz_substrate')
     call mpi_barrier(MPI_COMM_WORLD, ierr)
 
     call read_file_list
@@ -77,7 +75,7 @@ program main
             cycle
         endif
         call compute_descriptors
-        do augmentation_index = 1, 10
+        do augmentation_index = 1, n_rotations
             call stable_seed
             accepted = .false.
             call seed_random            
@@ -89,6 +87,7 @@ program main
             call add_substrate_to_cluster
             if (.not. placed) cycle
             call read_input
+
             call prepare_hrtem_particle
             
             call run_slc

@@ -14,8 +14,8 @@ module wavimg
 
     subroutine run_wavimg
     
-        use variable, only: wave, lambda, dx, nx, ny, wave_fft, image, oapr
-        use fft, only: fft2
+        use variable,   only: wave, lambda, dx, nx, ny, wave_fft, image, oapr
+        use fft,        only: fft2
 
 
         if (oapr .le. 0.0d0) oapr = 1000.0d0 * lambda * 0.5d0/dx
@@ -30,9 +30,9 @@ module wavimg
 
     subroutine apply_vibration
         
-        use constants, only: pi
-        use variable, only: image, dx, dy, vib1, vib2, vibdir, dovib, nx, ny
-        use fft, only: fft2
+        use constants,  only: pi
+        use variable,   only: image, dx, dy, vib1, vib2, vibdir, dovib, nx, ny
+        use fft,        only: fft2
 
         integer             ::  nnx, nny, j_px, i_px
         double precision    ::  v12, v22, cd, sd, py, py2, px, px2, vtmp, vmean
@@ -108,9 +108,9 @@ module wavimg
 
     subroutine explicit_focus_image
 
-        use variable, only: wave_fft, doptc, fs, lambda, nx, ny, dx, dy, edge, dopsc, sc_mrad, oapr
-        use constants, only: pi
-        use fft, only: fft_index, fft2
+        use variable,   only: wave_fft, doptc, fs, lambda, nx, ny, dx, dy, edge, dopsc, sc_mrad, oapr
+        use constants,  only: pi
+        use fft,        only: fft_index, fft2
 
         integer             ::  nkfs, j_px, i_px, k
         double precision    ::  info_width, df_step, wsum, defocus_prefac, gy, gx, g2, df, wt, chi, sc_rad
@@ -183,8 +183,8 @@ module wavimg
 
     subroutine aberration_gradient
         
-        use constants, only: pi
-        use variable, only: lambda
+        use constants,  only: pi
+        use variable,   only: lambda
 
         integer             ::  k, l, m, n, j, p
         double precision    ::  w, prefac, poly, dpolyx, dpolyy, radial_x, radial_y
@@ -285,8 +285,8 @@ module wavimg
 
     double precision function aberration_chi()
 
-        use constants, only: pi
-        use variable, only: lambda
+        use constants,  only: pi
+        use variable,   only: lambda
 
         integer             ::  k, l, m, n, j
         double precision    ::  w, term, prefac

@@ -8,8 +8,8 @@ module constants
                                             & 1, 0, 2, 1, 3, 0, 2, 4, 1, 3, 5, 0, &
                                             & 2, 4, 6, 1, 3, 5, 7, 0, 2, 4, 6, 8 /)
     integer, parameter              ::  nx_max = 256, ny_max = 256, nz_max = 20
-    integer, parameter              ::  n_atoms_max = 5000, n_atoms_substrate_max = 35000, n_types_max = 5
-    integer, parameter              ::  n_atoms_tot_max = n_atoms_max + n_atoms_substrate_max
+    integer, parameter              ::  n_atoms_alloy_max = 5000, n_atoms_substrate_max = 35000, n_types_max = 5
+    integer, parameter              ::  n_atoms_max = n_atoms_alloy_max + n_atoms_substrate_max
     double precision, parameter     ::  interatomic_distance = 2.889d0
     double precision, parameter     ::  cluster_cutoff = 1.5d0 * interatomic_distance
     double precision, parameter     ::  pi = acos(-1.0d0)
@@ -29,24 +29,22 @@ endmodule
 
 module variable
 
-    use constants, only: n_atoms_max, n_atoms_substrate_max, n_atoms_tot_max, n_types_max, nx_max, ny_max, nz_max
+    use constants, only: n_atoms_alloy_max, n_atoms_substrate_max, n_atoms_max, n_types_max, nx_max, ny_max, nz_max
 
     implicit none
 
-    integer             ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, n_ranks, nx, ny, nz, n_seed
-    integer             ::  atomic_number(n_atoms_tot_max), n_atoms_substrate, n_atoms_tot
-    integer             ::  n_substrate_files
-    double precision    ::  box(3), shift(3), biso(n_atoms_tot_max), image(nx_max, ny_max), pos(3, n_atoms_max), epot(n_atoms_max)
-    double precision    ::  pos_cluster(3, n_atoms_tot_max), readout_noise_e, aberr_re(24), aberr_im(24), position_scale
-    double precision    ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz, gmax
-    double precision    ::  phi, theta, psi
-    double precision    ::  pos_substrate(3, n_atoms_substrate_max)
-    character(len=2)    ::  species(n_atoms_tot_max), atom_typ1, atom_typ2, species_substrate(n_atoms_substrate_max)
-    character(len=255)  ::  xyz_files(48000), data_file, output_data, substrate_file
-    character(len=255)  ::  substrate_dir
-    character(len=:), allocatable   ::  substrate_files(:) ! noms des fichiers de substrat (sans le dossier)
-    double complex      ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
-    logical             ::  placed, found
+    integer                         ::  max_files, snapshot_index, augmentation_index, seed, doptc, dopsc, dovib, n_ranks, nx, ny
+    integer                         ::  atomic_number(n_atoms_max), n_atoms_substrate, n_atoms_tot, n_substrate_files, nz, n_seed
+    integer                         ::  n_rotations
+    double precision                ::  box(3), shift(3), biso(n_atoms_max), image(nx_max, ny_max), pos(3, n_atoms_alloy_max)
+    double precision                ::  epot(n_atoms_alloy_max), pos_cluster(3, n_atoms_max), readout_noise_e, aberr_re(24), gmax
+    double precision                ::  ht, fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, lambda, g2, dx, dy, dz
+    double precision                ::  phi, theta, psi, aberr_im(24), position_scale, pos_substrate(3, n_atoms_substrate_max)
+    character(len=2)                ::  species(n_atoms_max), atom_typ1, atom_typ2, species_substrate(n_atoms_substrate_max)
+    character(len=255)              ::  xyz_files(48000), data_file, output_data, substrate_file, substrate_dir
+    character(len=255), allocatable ::  substrate_files(:) ! noms des fichiers de substrat (sans le dossier)
+    double complex                  ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
+    logical                         ::  placed, found
 
 
 endmodule
@@ -59,25 +57,25 @@ module descriptor
 
     implicit none
 
-    integer             :: id_sim               ! Simulation ID
-    integer             :: id_sim_bis           ! Simulation ID (after rotation)
-    integer             :: n_atoms              ! Number of atoms
-    double precision    :: composition          ! Composition
-    integer             :: n_steps              ! Number of steps
-    double precision    :: initial_temperature  ! Initial temperature
-    double precision    :: epot_total           ! Total potential energy
-    double precision    :: gyration_radius      ! Gyration radius
-    integer             :: nat1                 ! Number of atoms of type 1
-    integer             :: nat2                 ! Number of atoms of type 2
-    integer             :: nat1_out             ! Number of atoms of type 1 outside the virtual sphere
-    integer             :: nat2_out             ! Number of atoms of type 2 outside the virtual sphere
-    integer             :: nat1_in              ! Number of atoms of type 1 inside the virtual sphere
-    integer             :: nat2_in              ! Number of atoms of type 2 inside the virtual sphere
-    integer             :: n_clusters           ! Number of clusters
-    double precision    :: d_com                ! Distance between centers of mass of the two clusters
-    double precision    :: coreshell_index      ! Core-shell index
-    double precision    :: mass_center(3)
-    double precision    :: mass_center_nat1(3)
-    double precision    :: mass_center_nat2(3)
+    integer             ::  id_sim               ! Simulation ID
+    integer             ::  id_sim_bis           ! Simulation ID (after rotation)
+    integer             ::  n_atoms              ! Number of atoms
+    double precision    ::  composition          ! Composition
+    integer             ::  n_steps              ! Number of steps
+    double precision    ::  initial_temperature  ! Initial temperature
+    double precision    ::  epot_total           ! Total potential energy
+    double precision    ::  gyration_radius      ! Gyration radius
+    integer             ::  nat1                 ! Number of atoms of type 1
+    integer             ::  nat2                 ! Number of atoms of type 2
+    integer             ::  nat1_out             ! Number of atoms of type 1 outside the virtual sphere
+    integer             ::  nat2_out             ! Number of atoms of type 2 outside the virtual sphere
+    integer             ::  nat1_in              ! Number of atoms of type 1 inside the virtual sphere
+    integer             ::  nat2_in              ! Number of atoms of type 2 inside the virtual sphere
+    integer             ::  n_clusters           ! Number of clusters
+    double precision    ::  d_com                ! Distance between centers of mass of the two clusters
+    double precision    ::  coreshell_index      ! Core-shell index
+    double precision    ::  mass_center(3)
+    double precision    ::  mass_center_nat1(3)
+    double precision    ::  mass_center_nat2(3)
 
 endmodule

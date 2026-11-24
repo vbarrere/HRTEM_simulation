@@ -1,16 +1,13 @@
 module slc
 
-    use constants, only: nx_max, ny_max, nz_max, n_types_max, n_atoms_tot_max
+    use constants, only: nx_max, ny_max, nz_max, n_types_max, n_atoms_max
 
     implicit none
 
-    integer             ::  n_types = 0, type_index(n_atoms_tot_max), atomic_number_type(n_types_max)
-    integer             ::  slice_count(nz_max)
+    integer             ::  n_types = 0, type_index(n_atoms_max), atomic_number_type(n_types_max), slice_count(nz_max)
     double precision    ::  volume_slc, f_re, f_im, gthr2, gx(nx_max), gy(ny_max), biso_type(n_types_max), a(2), b(6)
     double complex      ::  uhat(nx_max, ny_max), trans_fft(nx_max, ny_max), ftab(nx_max, ny_max, n_types_max)
-
-    integer             ::  slice(nz_max, n_atoms_tot_max), m_fft(nx_max), conj_row(nx_max), i_nyq, n_direct
-
+    integer             ::  slice(nz_max, n_atoms_max), m_fft(nx_max), conj_row(nx_max), i_nyq, n_direct
     ! Facteur de structure par blocs de n_blk atomes (slice_potential): phases selon x et y, produit par ZGEMM
     integer, parameter  ::  n_blk = 256
     double complex      ::  phase_x_blk(nx_max, n_blk), phase_y_blk(ny_max, n_blk), sfac(nx_max, ny_max)
@@ -142,9 +139,9 @@ module slc
 
     subroutine run_slc
 
-        use constants, only: sigma0, box_hrtem
-        use variable, only: nx, ny, nz, lambda, dx, dy, dz, trans, gmax, n_atoms_tot, pos_cluster
-        use fft, only: fft_index, fft2
+        use constants,  only: sigma0, box_hrtem
+        use variable,   only: nx, ny, nz, lambda, dx, dy, dz, trans, gmax, n_atoms_tot, pos_cluster
+        use fft,        only: fft_index, fft2
 
         integer             ::  i_px, mx, my, index_slice, i_atom
         double precision    ::  sigma_lambda
@@ -209,9 +206,9 @@ module slc
 
     subroutine apply_hard_aperture
 
-        use constants, only: box_hrtem
-        use variable, only: nx, ny
-        use fft, only: fft_index
+        use constants,  only: box_hrtem
+        use variable,   only: nx, ny
+        use fft,        only: fft_index
 
         integer             ::  i_px, j_px, mx, my
         double precision    ::  gx_hrtem, gy_hrtem
@@ -232,8 +229,8 @@ module slc
 
     subroutine slice_potential(index_slice)
     
-        use constants, only: v0
-        use variable, only: pos_cluster, nx, ny
+        use constants,  only: v0
+        use variable,   only: pos_cluster, nx, ny
 
         integer             ::  k, i_atom, i_type, n_in_blk
         logical             ::  first_blk
@@ -390,8 +387,8 @@ module slc
 
     subroutine scattering_factor(index_type)
 
-        use constants, only: e0, hc, pi, r8pi2
-        use variable, only: g2, ht
+        use constants,  only: e0, hc, pi, r8pi2
+        use variable,   only: g2, ht
 
         double precision    ::  gamma, ua, ga, k0, dwf, g
         integer, intent(in) ::  index_type

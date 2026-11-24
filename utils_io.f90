@@ -2,29 +2,27 @@ module utils_io
 
     implicit none
     
-    integer             :: id_sim_tab(48000)
-    integer             :: n_atoms_tab(48000), n_steps_tab(48000)
-    double precision    :: composition_tab(48000), initial_temperature_tab(48000)
-
+    integer                         ::  id_sim_tab(48000), n_atoms_tab(48000), n_steps_tab(48000)
+    double precision                ::  composition_tab(48000), initial_temperature_tab(48000)
     ! Champs d'un enregistrement du fichier de sortie, dans l'ordre d'ecriture de save_data_row (voir README.md):
     ! les descripteurs entiers (int32), les descripteurs reels (float64), puis l'image (uint8, ny x nx)
-    character(len=8), parameter     :: int_fields(9) = [character(len=8) :: 'id_sim', 'n_atoms', 'n_steps', &
-                                        'nat1', 'nat2', 'nat1_out', 'nat2_out', 'nat1_in', 'nat2_in']
-    character(len=19), parameter    :: real_fields(28) = [character(len=19) :: 'initial_temperature', 'epot_total', &
-                                        'composition', 'gyration_radius', 'd_com', 'coreshell_index', 'phi', 'theta', 'psi', &
-                                        'position_scale', 'defocus', 'A1_re', 'A1_im', 'B2_re', 'B2_im', 'A2_re', 'A2_im', &
-                                        'C3', 'S3_re', 'S3_im', 'A3_re', 'A3_im', 'B4_re', 'B4_im', 'D4_re', 'D4_im', &
-                                        'A4_re', 'A4_im']
+    character(len=8), parameter     ::  int_fields(9) = [character(len=8) :: 'id_sim', 'n_atoms', 'n_steps', &
+                                            & 'nat1', 'nat2', 'nat1_out', 'nat2_out', 'nat1_in', 'nat2_in']
+    character(len=19), parameter    ::  real_fields(28) = [character(len=19) :: 'initial_temperature', 'epot_total', &
+                                            & 'composition', 'gyration_radius', 'd_com', 'coreshell_index', 'phi', 'theta', 'psi', &
+                                            & 'position_scale', 'defocus', 'A1_re', 'A1_im', 'B2_re', 'B2_im', 'A2_re', 'A2_im', &
+                                            & 'C3', 'S3_re', 'S3_im', 'A3_re', 'A3_im', 'B4_re', 'B4_im', 'D4_re', 'D4_im', &
+                                            & 'A4_re', 'A4_im']
 
     contains
 
 
     subroutine read_file_list
 
-        use constants, only: file_list
-        use variable, only: max_files, xyz_files
+        use constants,  only: file_list
+        use variable,   only: max_files, xyz_files
 
-        integer :: ierr, i_file, n_files
+        integer ::  ierr, i_file, n_files
 
         n_files = 0
         open(10, file=file_list, status='old', action='read')
@@ -45,24 +43,25 @@ module utils_io
 
     subroutine read_substrate_list
     
-        use constants, only: substrate_list
-        use variable, only: substrate_files, n_substrate_files
+        use constants,  only: substrate_list
+        use variable,   only: substrate_files, n_substrate_files
 
-        integer             :: ierr, i_file, len_max
-        character(len=255)  :: line
+        integer             ::  ierr, i_file!, len_max
+        character(len=255)  ::  line
 
         ! Premier passage: nombre de fichiers et longueur maximale des noms, pour allouer la liste
         n_substrate_files = 0
-        len_max = 1
+        !len_max = 1
         open(10, file=substrate_list, status='old', action='read')
         do
             read(10, '(A)', iostat=ierr) line
             if (ierr /= 0) exit
             n_substrate_files = n_substrate_files + 1
-            len_max = max(len_max, len_trim(line))
+            !len_max = max(len_max, len_trim(line))
         enddo
         if (n_substrate_files .eq. 0) stop 'error: no substrate files found'
-        allocate(character(len=len_max) :: substrate_files(n_substrate_files))
+        !allocate(character(len=len_max) :: substrate_files(n_substrate_files))
+        allocate(substrate_files(n_substrate_files))
         rewind(10)
         do i_file = 1, n_substrate_files
             read(10, '(A)') substrate_files(i_file)
@@ -76,7 +75,7 @@ module utils_io
 
         use variable, only: xyz_files, data_file
 
-        integer :: i_file, ierr
+        integer ::  i_file, ierr
 
         open(10, file=data_file, status='old', action='read')
         do i_file = 1, size(xyz_files)
@@ -91,9 +90,9 @@ module utils_io
 
     subroutine read_xyz
 
-        use constants, only: n_atoms_max
-        use variable, only: xyz_files, snapshot_index, pos, species, epot, box
-        use descriptor, only: n_atoms
+        use constants,      only: n_atoms_alloy_max
+        use variable,       only: xyz_files, snapshot_index, pos, species, epot, box
+        use descriptor,     only: n_atoms
 
         integer             :: i_atom, index0, index1
         double precision    :: lattice(9)
@@ -101,8 +100,8 @@ module utils_io
 
         open(10, file=xyz_files(snapshot_index), status='old', action='read')
         read(10, *) n_atoms
-        if (n_atoms .gt. n_atoms_max) then
-            write(*,*) 'error: n_atoms = ', n_atoms, ' exceeds n_atoms_max = ', n_atoms_max, &
+        if (n_atoms .gt. n_atoms_alloy_max) then
+            write(*,*) 'error: n_atoms = ', n_atoms, ' exceeds n_atoms_alloy_max = ', n_atoms_alloy_max, &
                 ' in ', trim(xyz_files(snapshot_index))
             stop
         endif
@@ -125,12 +124,11 @@ module utils_io
 
     subroutine read_data
         
-        use variable, only: xyz_files, snapshot_index, found
+        use variable,   only: xyz_files, snapshot_index, found
         use descriptor, only: id_sim, n_atoms, composition, n_steps, initial_temperature
 
-        integer             :: i_file, idx
-        character(len=255)  :: filename, basename
-        integer             :: id_from_file
+        integer             ::  i_file, idx, id_from_file
+        character(len=255)  ::  filename, basename
 
         filename = xyz_files(snapshot_index)
         idx = index(filename, '/', back=.true.)
@@ -163,11 +161,11 @@ module utils_io
 
     subroutine read_input
 
-        use constants, only: box_hrtem
-        use variable, only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                            doptc, dopsc, dovib, aberr_re, aberr_im, lambda, pos_cluster
-        use random_utils, only: random_uniform, sample_aberration
-        use descriptor, only: n_atoms
+        use constants,      only: box_hrtem
+        use variable,       only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
+                                    doptc, dopsc, dovib, aberr_re, aberr_im, lambda, pos_cluster
+        use random_utils,   only: random_uniform, sample_aberration
+        use descriptor,     only: n_atoms
 
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
@@ -191,7 +189,8 @@ module utils_io
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
         call sample_aberration(6, 5000.0d0, 20000.0d0) ! C3 Spherical aberration (Cs)
-        
+        !aberr_re(6) = 10000.0d0
+        !aberr_im(6) = 0.0d0
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
         call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
         call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
@@ -202,6 +201,7 @@ module utils_io
         ! et non au plan de sortie de la boite: on retire la distance entre ce plan et la sortie de la boite
         aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
         aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
+        !aberr_re(2) = 10.0d0
         aberr_im(2) = 0.0d0
 
     endsubroutine
@@ -209,13 +209,13 @@ module utils_io
 
     subroutine save_data
 
-        use, intrinsic :: iso_fortran_env, only: int64
+        use, intrinsic  ::  iso_fortran_env, only: int64
         use variable, only: n_ranks, output_data, nx, ny
 
-        integer                         :: i_file, ierr
-        integer(int64)                  :: file_size, total_size, record_size
-        character(len=10)               :: rank_suffix
-        character(len=:), allocatable   :: records_tmp
+        integer                         ::  i_file, ierr
+        integer(int64)                  ::  file_size, total_size, record_size
+        character(len=10)               ::  rank_suffix
+        character(len=:), allocatable   ::  records_tmp
 
         ! Les fichiers par rang contiennent deja les enregistrements finaux: en-tete NPY puis concatenation dans l'ordre des rangs
         record_size = int(4 * size(int_fields) + 8 * size(real_fields) + nx * ny, int64)
@@ -239,11 +239,11 @@ module utils_io
 
         use variable, only: nx, ny
 
-        integer, intent(in)             :: n_images
-        character(len=*), intent(in)    :: filename
-        integer                         :: unit_npy, len_header, i
-        character(len=16)               :: s_nx, s_ny, s_n
-        character(len=:), allocatable   :: descr, dict
+        integer, intent(in)             ::  n_images
+        integer                         ::  unit_npy, len_header, i
+        character(len=*), intent(in)    ::  filename
+        character(len=16)               ::  s_nx, s_ny, s_n
+        character(len=:), allocatable   ::  descr, dict
 
         ! En-tete NPY 1.0 d'un tableau structure (int_fields, real_fields, image): numpy.load(filename, mmap_mode='r')
         write(s_nx, '(I0)') nx
@@ -270,17 +270,17 @@ module utils_io
 
     subroutine save_data_row(written)
 
-        use, intrinsic :: iso_fortran_env, only: int8, int32, real64
-        use constants, only: record_unit
+        use, intrinsic  ::  iso_fortran_env, only: int8, int32, real64
+        use constants,  only: record_unit
         use descriptor
-        use variable, only: nx, ny, image, aberr_re, aberr_im, phi, theta, psi, position_scale
+        use variable,   only: nx, ny, image, aberr_re, aberr_im, phi, theta, psi, position_scale
 
-        logical, intent(out)    :: written
-        integer             :: i_px, j_px, q
-        integer(int8)       :: qimage(nx, ny)
-        integer(int32)      :: int_values(size(int_fields))
-        real(real64)        :: real_values(size(real_fields))
-        double precision    :: scaled, image_min, image_max
+        logical, intent(out)    ::  written
+        integer                 ::  i_px, j_px, q
+        integer(int8)           ::  qimage(nx, ny)
+        integer(int32)          ::  int_values(size(int_fields))
+        real(real64)            ::  real_values(size(real_fields))
+        double precision        ::  scaled, image_min, image_max
 
         ! Un enregistrement binaire par image: descripteurs (int_fields, real_fields) puis l'image en octets non signes
         ! 0-255 (x le plus rapide), ecrits en une seule instruction (voir README.md)
@@ -306,5 +306,57 @@ module utils_io
 
     endsubroutine
 
+
+    subroutine save_xyz_with_substrate
+
+        use constants, only: box_hrtem
+        use variable, only: pos_cluster, species, n_atoms_tot
+        use descriptor, only: id_sim_bis
+
+        integer             ::  i_atom, unit_xyz
+        double precision    ::  lattice(3)
+        character(len=255)  ::  filename, header
+        character(len=255)  ::  id_str
+
+        lattice = box_hrtem * 10.0d0
+        write(id_str, '(I0)') id_sim_bis
+        filename = 'xyz_substrate/' // trim(id_str) // '.xyz'
+
+        write(header, '(A,F0.3,A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
+            ' 0.0 0.0 0.0 ', lattice(3), '" Origin="0.0 0.0 ', -0.5d0*lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
+        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
+        write(unit_xyz, '(I0)') n_atoms_tot
+        write(unit_xyz, '(A)') trim(header)
+        do i_atom = 1, n_atoms_tot
+            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos_cluster(:, i_atom)
+        enddo
+        close(unit_xyz)
+
+    endsubroutine
+
+
+    subroutine save_xyz_without_substrate
+
+        use variable, only: pos, species, box
+        use descriptor, only: id_sim_bis, n_atoms
+
+        integer             ::  i_atom, unit_xyz
+        character(len=255)  ::  filename, header
+        character(len=255)  ::  id_str
+
+        write(id_str, '(I0)') id_sim_bis
+        filename = 'xyz_substrate/' // trim(id_str) // '_original.xyz'
+
+        write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', box(1), ' 0.0 0.0 0.0 ', box(2), &
+            ' 0.0 0.0 0.0 ', box(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
+        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
+        write(unit_xyz, '(I0)') n_atoms
+        write(unit_xyz, '(A)') trim(header)
+        do i_atom = 1, n_atoms
+            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos(:, i_atom)
+        enddo
+        close(unit_xyz)
+
+    endsubroutine
 
 endmodule

@@ -6,8 +6,8 @@
 
     subroutine stable_seed
 
-        use constants, only: base_seed
-        use variable, only: xyz_files, snapshot_index, augmentation_index, seed
+        use constants,  only: base_seed
+        use variable,   only: xyz_files, snapshot_index, augmentation_index, seed
 
         character(len=255)  ::  filename
         integer             ::  i
@@ -72,8 +72,8 @@
     
     subroutine sample_aberration(index, xmin, xmax)
         
-        use constants, only: aberr_periodicity, pi
-        use variable, only: aberr_re, aberr_im
+        use constants,  only: aberr_periodicity, pi
+        use variable,   only: aberr_re, aberr_im
 
         integer                         ::  n
         double precision, intent(in)    ::  xmin, xmax

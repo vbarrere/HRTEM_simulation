@@ -8,9 +8,9 @@ module msa
 
     subroutine run_msa
 
-        use constants, only: pi
-        use variable, only: wave, dx, dy, nz, trans, nx, ny, lambda, dz, wave_fft, gmax
-        use fft, only: fft2, fft_index
+        use constants,  only: pi
+        use variable,   only: wave, dx, dy, nz, trans, nx, ny, lambda, dz, wave_fft, gmax
+        use fft,        only: fft2, fft_index
 
         integer             ::  i_px, j_px, mx, my
         double precision    ::  aperture2, chi, gx, gy, g2

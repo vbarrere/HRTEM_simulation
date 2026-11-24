@@ -7,8 +7,8 @@ module nano_process
     subroutine extract_largest_cluster
         
         use descriptor, only: n_clusters, n_atoms
-        use constants, only: cluster_cutoff
-        use variable, only: pos, box, species, epot
+        use constants,  only: cluster_cutoff
+        use variable,   only: pos, box, species, epot
 
         integer             ::  i_atom, j_atom, stack_top, current_atom, largest_cluster, i_cluster, largest_size
         integer             ::  cluster_id(n_atoms), cluster_size(n_atoms), stack(n_atoms)
@@ -75,29 +75,16 @@ module nano_process
         enddo
         n_atoms = largest_size
         
-        ! A verifier que ce calcul centre bien le cluster sur la boite de simulation
-        !pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) * nint((pos(1, 1:n_atoms) - pos(1, 1) )/ box(1))
-        !pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) * nint((pos(2, 1:n_atoms) - pos(2, 1) )/ box(2))
-        !pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) * nint((pos(3, 1:n_atoms) - pos(3, 1) )/ box(3))
         pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - sum(pos(1, 1:n_atoms)) / n_atoms
         pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - sum(pos(2, 1:n_atoms)) / n_atoms
         pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - sum(pos(3, 1:n_atoms)) / n_atoms
-        !pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) * nint(pos(1, 1:n_atoms) / box(1))
-        !pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) * nint(pos(2, 1:n_atoms) / box(2))
-        !pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) * nint(pos(3, 1:n_atoms) / box(3))
-        !pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - sum(pos(1, 1:n_atoms)) / n_atoms
-        !pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - sum(pos(2, 1:n_atoms)) / n_atoms
-        !pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - sum(pos(3, 1:n_atoms)) / n_atoms
-        !pos(1, 1:n_atoms) = pos(1, 1:n_atoms) - box(1) / 2.0d0
-        !pos(2, 1:n_atoms) = pos(2, 1:n_atoms) - box(2) / 2.0d0
-        !pos(3, 1:n_atoms) = pos(3, 1:n_atoms) - box(3) / 2.0d0
 
     endsubroutine
     
 
     subroutine compute_descriptors
         
-        use, intrinsic :: ieee_arithmetic
+        use, intrinsic  ::  ieee_arithmetic
         use descriptor
         use variable, only: species, pos, atom_typ1, epot
         
@@ -125,6 +112,7 @@ module nano_process
                 mass_center_nat2 = mass_center_nat2 + pos(:, i_atom)
             end if
         enddo
+        composition = dble(nat1) / dble(n_atoms)
         mass_center = mass_center / dble(n_atoms)
         if (nat1 .gt. 0) mass_center_nat1 = mass_center_nat1 / dble(nat1)
         if (nat2 .gt. 0) mass_center_nat2 = mass_center_nat2 / dble(nat2)
@@ -175,8 +163,8 @@ module nano_process
     subroutine compute_rotation
     
         use descriptor, only: n_atoms, id_sim, id_sim_bis, mass_center
-        use variable, only: pos, pos_cluster, augmentation_index, phi, theta, psi, position_scale
-        use constants, only: pi
+        use variable,   only: pos, pos_cluster, augmentation_index, phi, theta, psi, position_scale, n_rotations
+        use constants,  only: pi
 
         integer             ::  i_atom
         double precision    ::  u, rot_matrix(3, 3), cp, sp, ct, st, cs, ss
@@ -215,14 +203,15 @@ module nano_process
         do i_atom = 1, n_atoms
             pos_cluster(:, i_atom) = matmul(rot_matrix, pos_cluster(:, i_atom))
         enddo
-        id_sim_bis = (id_sim-1) * 10 + augmentation_index - 1
+        id_sim_bis = (id_sim-1) * n_rotations + augmentation_index - 1
+        !write(*,*) 'id_sim_bis = ', id_sim_bis, ' (id_sim = ', id_sim, ', augmentation_index = ', augmentation_index, ')'
     endsubroutine
 
 
     subroutine place_in_box
     
-        use constants, only: lateral_border_margin, box_hrtem
-        use variable, only: placed, shift, pos_cluster
+        use constants,  only: lateral_border_margin, box_hrtem
+        use variable,   only: placed, shift, pos_cluster
         use descriptor, only: n_atoms
 
         integer             ::  i_axis
@@ -254,8 +243,8 @@ module nano_process
 
         use variable, only: substrate_file, substrate_files, n_substrate_files, substrate_dir
 
-        integer :: k
-        double precision :: u
+        integer             ::  k
+        double precision    ::  u
 
         call random_number(u)
         k = min(int(u * n_substrate_files) + 1, n_substrate_files)
@@ -266,10 +255,10 @@ module nano_process
 
     subroutine read_substrate_file
 
-        use constants, only: n_atoms_substrate_max, box_hrtem
-        use variable, only: substrate_file, n_atoms_substrate, pos_substrate, species_substrate
+        use constants,  only: n_atoms_substrate_max, box_hrtem
+        use variable,   only: substrate_file, n_atoms_substrate, pos_substrate, species_substrate
 
-        integer ::  i_atom, index0, index1
+        integer             ::  i_atom, index0, index1
         double precision    ::  lattice(9)
         character(len=255)  ::  line
 
@@ -300,12 +289,12 @@ module nano_process
 
     subroutine add_substrate_to_cluster
         
-        use constants, only: box_hrtem
-        use variable, only: n_atoms_tot, pos_cluster, pos_substrate, species_substrate, species, n_atoms_substrate, placed
+        use constants,  only: box_hrtem
+        use variable,   only: n_atoms_tot, pos_cluster, pos_substrate, species_substrate, species, n_atoms_substrate, placed
         use descriptor, only: n_atoms, id_sim_bis
 
-        integer ::  i_atom
-        double precision :: z_shift, u(2), xy_shift(2), box_xy(2)
+        integer             ::  i_atom
+        double precision    ::  z_shift, u(2), xy_shift(2), box_xy(2)
 
         ! Decalage lateral aleatoire du substrat: exact car le substrat est periodique en x, y avec la periode de la boite
         box_xy = box_hrtem(1:2) * 10.0d0
@@ -323,71 +312,16 @@ module nano_process
         if (maxval(pos_cluster(3, 1:n_atoms_tot)) .ge. 0.5d0 * box_hrtem(3) * 10.0d0 .or. minval(pos_cluster(3, 1:n_atoms_tot)) &
                     &.lt. -0.5d0 * box_hrtem(3) * 10.0d0) then
             placed = .false.
-            call save_xyz
-            call save_xyz2
             write(*,*) "Cluster with substrate does not fit in the box height. Skipping. (id_sim = ", id_sim_bis, ")"
         endif
 
     endsubroutine
     
-
-    subroutine save_xyz
-
-        use constants, only: box_hrtem
-        use variable, only: pos_cluster, species, n_atoms_tot
-        use descriptor, only: id_sim_bis
-
-        integer             ::  i_atom, unit_xyz
-        double precision    ::  lattice(3)
-        character(len=255)  ::  filename, header
-        character(len=255)  ::  id_str
-
-        lattice = box_hrtem * 10.0d0
-        write(id_str, '(I0)') id_sim_bis
-        filename = 'xyz_substrate/' // trim(id_str) // '.xyz'
-
-        write(header, '(A,F0.3,A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', lattice(1), ' 0.0 0.0 0.0 ', lattice(2), &
-            ' 0.0 0.0 0.0 ', lattice(3), '" Origin="0.0 0.0 ', -0.5d0*lattice(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
-        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
-        write(unit_xyz, '(I0)') n_atoms_tot
-        write(unit_xyz, '(A)') trim(header)
-        do i_atom = 1, n_atoms_tot
-            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos_cluster(:, i_atom)
-        enddo
-        close(unit_xyz)
-
-    endsubroutine
-
-
-    subroutine save_xyz2
-
-        use variable, only: pos, species, box
-        use descriptor, only: id_sim_bis, n_atoms
-
-        integer             ::  i_atom, unit_xyz
-        character(len=255)  ::  filename, header
-        character(len=255)  ::  id_str
-
-        write(id_str, '(I0)') id_sim_bis
-        filename = 'xyz_substrate/' // trim(id_str) // '_original.xyz'
-
-        write(header, '(A,F0.3,A,F0.3,A,F0.3,A)') 'Lattice="', box(1), ' 0.0 0.0 0.0 ', box(2), &
-            ' 0.0 0.0 0.0 ', box(3), '" Properties=species:S:1:pos:R:3 pbc="T T F"'
-        open(newunit=unit_xyz, file=trim(filename), status='replace', action='write')
-        write(unit_xyz, '(I0)') n_atoms
-        write(unit_xyz, '(A)') trim(header)
-        do i_atom = 1, n_atoms
-            write(unit_xyz, '(A,3(1X,F12.5))') trim(species(i_atom)), pos(:, i_atom)
-        enddo
-        close(unit_xyz)
-
-    endsubroutine
-
     
     subroutine prepare_hrtem_particle
         
-        use constants, only: dbf_ag, dbf_co, dbf_c, box_hrtem
-        use variable, only: species, atom_typ1, atom_typ2, pos_cluster, atomic_number, biso, n_atoms_tot
+        use constants,  only: dbf_ag, dbf_co, dbf_c, box_hrtem
+        use variable,   only: species, atom_typ1, atom_typ2, pos_cluster, atomic_number, biso, n_atoms_tot
 
         integer ::  i_atom
 
