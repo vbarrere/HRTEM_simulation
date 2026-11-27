@@ -2,6 +2,7 @@ FC = mpifort
 FFLAGS ?= -O2 -Wall -Wextra
 #FFLAGS ?= -Wall -Wextra -g -O0 -fcheck=all -fbacktrace
 LDLIBS ?= /lib/x86_64-linux-gnu/libfftw3.so.3 /lib/x86_64-linux-gnu/libopenblas.so.0
+#LDLIBS ?= -lfftw3 -lopenblas
 
 PREP_OBJS = main.o utils_io.o constants.o random_utils.o nano_process.o slc.o fft.o msa.o wavimg.o
 

@@ -44,7 +44,7 @@ module variable
     character(len=255)              ::  xyz_files(48000), data_file, output_data, substrate_file, substrate_dir
     character(len=255), allocatable ::  substrate_files(:) ! noms des fichiers de substrat (sans le dossier)
     double complex                  ::  trans(nx_max, ny_max, nz_max), wave(nx_max, ny_max), wave_fft(nx_max, ny_max)
-    logical                         ::  placed, found
+    logical                         ::  placed, found, defocus_study, noise_study
 
 
 endmodule

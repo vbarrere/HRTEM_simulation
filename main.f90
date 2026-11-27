@@ -3,7 +3,8 @@ program main
     use mpi
     use constants,  only: file_list, record_unit, nx_max, nz_max, substrate_list, hc, e0
     use variable,   only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
-                        & nx, ny, nz, ht, data_file, found, n_ranks, output_data, substrate_dir, lambda, n_rotations
+                        & nx, ny, nz, ht, data_file, found, n_ranks, output_data, substrate_dir, lambda, n_rotations, &
+                        & aberr_re, aberr_im, defocus_study, noise_study, dose_e_per_a2, readout_noise_e
     use utils_io
     use nano_process
     use random_utils
@@ -15,6 +16,7 @@ program main
     implicit none
 
     integer             ::  ierr, rank, first_file, last_file, accepted_local, accepted_total, n_images_local, n_accepted
+    integer             ::  i_c3, i_defocus, i_dose, i_readout
     character(len=255)  ::  rank_suffix, rank_records, xyz_dir, env_var
     logical             ::  accepted
 
@@ -39,6 +41,23 @@ program main
     read(env_var, *) nz
     call get_environment_variable('ht', env_var)
     read(env_var, *) ht
+    call get_environment_variable('defocus_study', env_var)
+    if (env_var .eq. '1') then
+        defocus_study = .true.
+    else 
+        defocus_study = .false.
+    endif
+    call get_environment_variable('noise_study', env_var)
+    if (env_var .eq. '1') then
+        noise_study = .true.
+    else
+        noise_study = .false.
+    endif
+    if (defocus_study .and. noise_study) then
+        if (rank .eq. 0) write(*,*) "Error: noise and defocus variations cannot be both studied."
+        call mpi_finalize(ierr)
+        stop
+    endif
 
     if (nx .lt. 1 .or. nx .gt. nx_max) stop 'error: n_px out of range [1, 256]'
     if (nz .lt. 1 .or. nz .gt. nz_max) stop 'error: nz out of range [1, 20]'
@@ -86,16 +105,43 @@ program main
             call read_substrate_file
             call add_substrate_to_cluster
             if (.not. placed) cycle
-            call read_input
-
             call prepare_hrtem_particle
-            
             call run_slc
             call run_msa
-            call run_wavimg
-
-            call save_data_row(accepted)
-            if (accepted) n_accepted = n_accepted + 1
+            if (defocus_study) then
+                id_sim_bis = id_sim_bis * 10000
+                do i_c3 = -20, 20
+                    aberr_re(6) = dble(i_c3) * 1000.0d0
+                    aberr_im(6) = 0.0d0
+                    do i_defocus = -15, 15
+                        aberr_re(2) = dble(i_defocus)
+                        aberr_im(2) = 0.0d0
+                        call read_input
+                        id_sim_bis = id_sim_bis + 1
+                        call run_wavimg
+                        call save_data_row(accepted)
+                        if (accepted) n_accepted = n_accepted + 1
+                    enddo
+                enddo
+            else if (noise_study) then
+                id_sim_bis = id_sim_bis * 1000
+                do i_dose = 3, 15
+                    dose_e_per_a2 = dble(i_dose) * 1000.0d0
+                    do i_readout = 0, 10
+                        readout_noise_e = dble(i_readout) * 0.1d0
+                        call read_input
+                        id_sim_bis = id_sim_bis + 1
+                        call run_wavimg
+                        call save_data_row(accepted)
+                        if (accepted) n_accepted = n_accepted + 1
+                    enddo
+                enddo
+            else
+                call read_input
+                call run_wavimg
+                call save_data_row(accepted)
+                if (accepted) n_accepted = n_accepted + 1
+            endif
         enddo
         accepted_local = accepted_local + n_accepted
     enddo

@@ -2,12 +2,12 @@
 
 #SBATCH --job-name=hrtem_sim           # label in squeue; becomes %x in the log name
 #SBATCH --account=rsk@cpu              # allocation charged; also routes to the V100 nodes, i.e. GPUs, change to "rsk@cpu" in case of CPU
-#SBATCH --nodes=16                     # one machine GPU, in case of CPU 2 CPU with 20 cores, ie 40 threads, without hyperthreading
-#SBATCH --ntasks=640                  # one process (a single python); in case of CPU set to the number of threads you want; e.g. 40 in case of 1 node, or 80 for two nodes, or 80 for one core and hyperthreading enabled
+#SBATCH --nodes=8                     # one machine GPU, in case of CPU 2 CPU with 20 cores, ie 40 threads, without hyperthreading
+#SBATCH --ntasks=320                  # one process (a single python); in case of CPU set to the number of threads you want; e.g. 40 in case of 1 node, or 80 for two nodes, or 80 for one core and hyperthreading enabled
 ##SBATCH --gres=gpu:1                  # one GPU; a node has four ; remove this line for a CPU only job
 #SBATCH --cpus-per-task=1              # 10 physical cores = 1/4 node = 40 GB RAM; keep 10 per GPU, set to 1 in case of cpu
 #SBATCH --hint=nomultithread           # count physical cores, not hardware threads; otherwise "--hint=multithread" for the use of hyperthreading
-#SBATCH --time=0:10:00                # hh:mm:ss; 10 min default; max 20 h (100 h with qos_gpu-t4)
+#SBATCH --time=01:00:00                # hh:mm:ss; 10 min default; max 20 h (100 h with qos_gpu-t4)
 #SBATCH --output=slurm_%x_%j.out       # stdout and stderr together; %j = job id
 #SBATCH --qos=qos_cpu-dev
 ##SBATCH --qos=qos_gpu-dev             # tests up to 2 h, starts faster
@@ -41,6 +41,8 @@ export n_px=256
 export nz=20
 export ht=200.0
 export n_rotations=10
+export defocus_study=0 # 1 to study defocus and spherical aberration variation (Put 1 rotation per simulation)
+export noise_study=0 # 1 to study noise variation (if 1, defocus_study must be 0 and if defocus_study is 1, noise_study must be 0)
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 # un thread BLAS par rang MPI
 
 make
@@ -58,4 +60,6 @@ echo "Execution time: $((end_time - start_time)) seconds"
 
 echo "finished $(date) with exit code ${rc}"
 
-# ~10 min for one subdataset, ~40min-1h for the full dataset, on 16 nodes with 40 threads each (640 ranks)
+# ~10 min for one subdataset, ~40min-1h for the full dataset, on 16 nodes with 40 threads each (640 ranks) (use 8 nodes and 320 ranks for a faster job, but less parallelism ~15-20 min for one subdataset)
+# ~45 min for defocus analysis (put only 1 rotation)
+# ~5 min for noise analysis

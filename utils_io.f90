@@ -8,11 +8,11 @@ module utils_io
     ! les descripteurs entiers (int32), les descripteurs reels (float64), puis l'image (uint8, ny x nx)
     character(len=8), parameter     ::  int_fields(9) = [character(len=8) :: 'id_sim', 'n_atoms', 'n_steps', &
                                             & 'nat1', 'nat2', 'nat1_out', 'nat2_out', 'nat1_in', 'nat2_in']
-    character(len=19), parameter    ::  real_fields(28) = [character(len=19) :: 'initial_temperature', 'epot_total', &
+    character(len=19), parameter    ::  real_fields(30) = [character(len=19) :: 'initial_temperature', 'epot_total', &
                                             & 'composition', 'gyration_radius', 'd_com', 'coreshell_index', 'phi', 'theta', 'psi', &
                                             & 'position_scale', 'defocus', 'A1_re', 'A1_im', 'B2_re', 'B2_im', 'A2_re', 'A2_im', &
                                             & 'C3', 'S3_re', 'S3_im', 'A3_re', 'A3_im', 'B4_re', 'B4_im', 'D4_re', 'D4_im', &
-                                            & 'A4_re', 'A4_im']
+                                            & 'A4_re', 'A4_im', 'electronic_dose', 'readout_noise']
 
     contains
 
@@ -161,12 +161,14 @@ module utils_io
 
     subroutine read_input
 
-        use constants,      only: box_hrtem
-        use variable,       only: fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
-                                    doptc, dopsc, dovib, aberr_re, aberr_im, lambda, pos_cluster
-        use random_utils,   only: random_uniform, sample_aberration
-        use descriptor,     only: n_atoms
+        use constants,      only:   box_hrtem
+        use variable,       only:   fs, edge, sc_mrad, vib1, vib2, vibdir, oapr, dose_e_per_a2, readout_noise_e, &
+                                    doptc, dopsc, dovib, aberr_re, aberr_im, lambda, pos_cluster, noise_study, &
+                                    defocus_study
+        use random_utils,   only:   random_uniform, sample_aberration
+        use descriptor,     only:   n_atoms
 
+        integer             ::  i_aberr
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
         fs = 0.7d0 ! ecart-type de focal spread (nm)
@@ -179,18 +181,26 @@ module utils_io
         vib2 = random_uniform(0.005d0, 0.04d0) ! Amplitude de vibration direction 2 (en nm)
         vibdir = random_uniform(0.0d0, 180.0d0) ! Direction de vibration (en degrés)
         oapr = random_uniform(20.0d0, 30.0d0) ! Rayon de l'ouverture objective (en mrad)
-        dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
-        readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
+        if (.not. noise_study) then
+            dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
+            readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
+        endif
+        if (defocus_study) then
+            do i_aberr = 1, 11
+                if ((i_aberr .eq. 2) .or. (i_aberr .eq. 6)) cycle
+                aberr_re(i_aberr) = 0.0d0
+                aberr_im(i_aberr) = 0.0d0
+            enddo
+        else
+            aberr_re = 0.0d0
+            aberr_im = 0.0d0
+        endif
 
-        aberr_re = 0.0d0
-        aberr_im = 0.0d0
         
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
         call sample_aberration(4, 0.0d0, 50.0d0) ! B2 Axial coma
         call sample_aberration(5, 0.0d0, 50.0d0) ! A2 3-fold astigmatism
-        call sample_aberration(6, 5000.0d0, 20000.0d0) ! C3 Spherical aberration (Cs)
-        !aberr_re(6) = 10000.0d0
-        !aberr_im(6) = 0.0d0
+        if (.not. defocus_study) call sample_aberration(6, 5000.0d0, 20000.0d0) ! C3 Spherical aberration (Cs)
         call sample_aberration(7, 0.0d0, 700.0d0) ! S3 Star aberration
         call sample_aberration(8, 0.0d0, 700.0d0) ! A3 4-fold astigmatism
         call sample_aberration(9, 0.0d0, 1500.0d0) ! B4 5th-order term
@@ -199,9 +209,8 @@ module utils_io
 
         ! Defocus de Scherzer + U(-3, 3) nm, rapporte au plan median de la particule (z moyen, nul apres place_in_box)
         ! et non au plan de sortie de la boite: on retire la distance entre ce plan et la sortie de la boite
-        aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+        if (.not. defocus_study) aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
         aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
-        !aberr_re(2) = 10.0d0
         aberr_im(2) = 0.0d0
 
     endsubroutine
@@ -273,7 +282,7 @@ module utils_io
         use, intrinsic  ::  iso_fortran_env, only: int8, int32, real64
         use constants,  only: record_unit
         use descriptor
-        use variable,   only: nx, ny, image, aberr_re, aberr_im, phi, theta, psi, position_scale
+        use variable,   only: nx, ny, image, aberr_re, aberr_im, phi, theta, psi, position_scale, dose_e_per_a2, readout_noise_e
 
         logical, intent(out)    ::  written
         integer                 ::  i_px, j_px, q
@@ -300,7 +309,8 @@ module utils_io
         real_values = [initial_temperature, epot_total, composition, gyration_radius, d_com, coreshell_index, &
             phi, theta, psi, position_scale, aberr_re(2), aberr_re(3), aberr_im(3), aberr_re(4), aberr_im(4), &
             aberr_re(5), aberr_im(5), aberr_re(6), aberr_re(7), aberr_im(7), aberr_re(8), aberr_im(8), &
-            aberr_re(9), aberr_im(9), aberr_re(10), aberr_im(10), aberr_re(11), aberr_im(11)]
+            aberr_re(9), aberr_im(9), aberr_re(10), aberr_im(10), aberr_re(11), aberr_im(11), dose_e_per_a2, &
+            readout_noise_e]
         write(record_unit) int_values, real_values, qimage
         written = .true.
 
