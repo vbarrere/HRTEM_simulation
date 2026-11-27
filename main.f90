@@ -116,7 +116,8 @@ program main
                     aberr_im(6) = 0.0d0
                     do i_defocus = -15, 15
                         aberr_re(2) = dble(i_defocus)
-                        aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
+                        aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms) * box_hrtem(3)*10.0d0) * 0.1d0
+                        ! La multiplication par box_hrtem(3)*10.0d0 est nécessaire car pos_cluster est en coordonnées fractionnaires, alors que box_hrtem est en Angstroms
                         aberr_im(2) = 0.0d0
                         id_sim_bis = id_sim_bis + 1
                         call run_wavimg

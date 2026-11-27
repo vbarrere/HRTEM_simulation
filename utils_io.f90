@@ -202,7 +202,7 @@ module utils_io
         ! et non au plan de sortie de la boite: on retire la distance entre ce plan et la sortie de la boite
         if (.not. defocus_study) then
             aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
-            aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
+            aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms) * box_hrtem(3)*10.0d0) * 0.1d0
         end if
         aberr_im(2) = 0.0d0
 
@@ -299,7 +299,7 @@ module utils_io
         enddo
         ! Meme ordre que int_fields et real_fields
         int_values = [id_sim_bis, n_atoms, n_steps, nat1, nat2, nat1_out, nat2_out, nat1_in, nat2_in]
-        real_values = [initial_temperature, epot_total, composition, gyration_radius, d_com, coreshell_index, &
+        real_values = [initial_temperature, epot_total, composition, gyration_radius*position_scale, d_com*position_scale, coreshell_index, &
             phi, theta, psi, position_scale, aberr_re(2), aberr_re(3), aberr_im(3), aberr_re(4), aberr_im(4), &
             aberr_re(5), aberr_im(5), aberr_re(6), aberr_re(7), aberr_im(7), aberr_re(8), aberr_im(8), &
             aberr_re(9), aberr_im(9), aberr_re(10), aberr_im(10), aberr_re(11), aberr_im(11), dose_e_per_a2, &
