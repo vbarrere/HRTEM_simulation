@@ -168,7 +168,6 @@ module utils_io
         use random_utils,   only:   random_uniform, sample_aberration
         use descriptor,     only:   n_atoms
 
-        integer             ::  i_aberr
 
         doptc = 1 ! focal spread (1 = on, 0 = off)
         fs = 0.7d0 ! ecart-type de focal spread (nm)
@@ -185,16 +184,8 @@ module utils_io
             dose_e_per_a2 = random_uniform(3000.0d0, 15000.0d0) ! Dose électronique par unité de surface (en e-/A^2) (intensité bruit de poisson)
             readout_noise_e = random_uniform(0.0d0, 1.0d0) ! bruit de lecture du détecteur
         endif
-        if (defocus_study) then
-            do i_aberr = 1, 11
-                if ((i_aberr .eq. 2) .or. (i_aberr .eq. 6)) cycle
-                aberr_re(i_aberr) = 0.0d0
-                aberr_im(i_aberr) = 0.0d0
-            enddo
-        else
-            aberr_re = 0.0d0
-            aberr_im = 0.0d0
-        endif
+        aberr_re = 0.0d0
+        aberr_im = 0.0d0
 
         
         call sample_aberration(3, 0.0d0, 6.0d0) ! A1 2-fold astigmatism
@@ -209,8 +200,10 @@ module utils_io
 
         ! Defocus de Scherzer + U(-3, 3) nm, rapporte au plan median de la particule (z moyen, nul apres place_in_box)
         ! et non au plan de sortie de la boite: on retire la distance entre ce plan et la sortie de la boite
-        if (.not. defocus_study) aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
-        aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
+        if (.not. defocus_study) then
+            aberr_re(2) = -1.2d0 * sqrt(abs(aberr_re(6)) * lambda) + random_uniform(-3.0d0, 3.0d0)
+            aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
+        end if
         aberr_im(2) = 0.0d0
 
     endsubroutine

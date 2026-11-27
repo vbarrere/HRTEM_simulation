@@ -1,10 +1,10 @@
 program main
 
     use mpi
-    use constants,  only: file_list, record_unit, nx_max, nz_max, substrate_list, hc, e0
+    use constants,  only: file_list, record_unit, nx_max, nz_max, substrate_list, hc, e0, box_hrtem
     use variable,   only: max_files, snapshot_index, species, augmentation_index, atom_typ1, atom_typ2, placed, &
                         & nx, ny, nz, ht, data_file, found, n_ranks, output_data, substrate_dir, lambda, n_rotations, &
-                        & aberr_re, aberr_im, defocus_study, noise_study, dose_e_per_a2, readout_noise_e
+                        & aberr_re, aberr_im, defocus_study, noise_study, dose_e_per_a2, readout_noise_e, pos_cluster
     use utils_io
     use nano_process
     use random_utils
@@ -108,6 +108,7 @@ program main
             call prepare_hrtem_particle
             call run_slc
             call run_msa
+            call read_input
             if (defocus_study) then
                 id_sim_bis = id_sim_bis * 10000
                 do i_c3 = -20, 20
@@ -115,8 +116,8 @@ program main
                     aberr_im(6) = 0.0d0
                     do i_defocus = -15, 15
                         aberr_re(2) = dble(i_defocus)
+                        aberr_re(2) = aberr_re(2) - (0.5d0*box_hrtem(3)*10.0d0 - sum(pos_cluster(3,1:n_atoms)) / dble(n_atoms)) * 0.1d0
                         aberr_im(2) = 0.0d0
-                        call read_input
                         id_sim_bis = id_sim_bis + 1
                         call run_wavimg
                         call save_data_row(accepted)
@@ -129,7 +130,6 @@ program main
                     dose_e_per_a2 = dble(i_dose) * 1000.0d0
                     do i_readout = 0, 10
                         readout_noise_e = dble(i_readout) * 0.1d0
-                        call read_input
                         id_sim_bis = id_sim_bis + 1
                         call run_wavimg
                         call save_data_row(accepted)
@@ -137,7 +137,6 @@ program main
                     enddo
                 enddo
             else
-                call read_input
                 call run_wavimg
                 call save_data_row(accepted)
                 if (accepted) n_accepted = n_accepted + 1
